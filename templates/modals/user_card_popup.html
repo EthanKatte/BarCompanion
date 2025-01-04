@@ -1,0 +1,24 @@
+<input type="checkbox" id="user-modal-{{ user.id }}" class="modal-toggle" />
+    <div class="modal">
+      <div class="modal-box relative">
+        <figure class="my-4">
+          <img
+            src="/static/users/{{ user.image_path }}"
+            alt="{{ user.name }}"
+            class="w-[250px] h-[250px] object-contain mx-auto"
+          />
+        </figure>
+        <!-- Modal Content -->
+        <h3 class="font-bold text-lg">{{ user.name }}</h3>
+        <p class="py-4">
+          {% for review in user.reviews %}
+            {% include "modals/user_review.html" %}
+          {% endfor %}
+        </p>
+        <!-- Close Button -->
+        <label for="user-modal-{{ user.id }}" class="btn btn-sm btn-circle absolute right-2 top-2">✕</label>
+
+      </div>
+      <!-- Overlay (click outside to close) -->
+      <label for="user-modal-{{ user.id }}" class="modal-backdrop"></label>
+    </div>

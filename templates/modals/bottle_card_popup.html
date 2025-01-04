@@ -1,0 +1,137 @@
+<input type="checkbox" id="modal-{{ bottle.id }}" class="modal-toggle" />
+<div class="modal">
+  <div class="modal-box relative">
+    <!-- Modal Content -->
+    <h3 class="font-bold text-lg">{{ bottle.brand }} - {{ bottle.name }}</h3>
+    <p class="py-4">
+      ABV: {{ bottle.abv }} <br />
+      {{ bottle.description }}
+    </p>
+    <figure class="my-4">
+      <img
+        src="/static/bottles/{{ bottle.image_path }}"
+        alt="{{ bottle.name }}"
+        class="w-[250px] h-[250px] object-contain mx-auto"
+      />
+    </figure>
+    <!-- Empty Status Checkbox -->
+    <div class="flex items-center mt-4">
+      <label for="isempty-{{ bottle.id }}" class="mr-2">Is Empty:</label>
+      <input
+        type="checkbox"
+        id="isempty-{{ bottle.id }}"
+        class="checkbox"
+        {% if bottle.isempty == 1 %}checked{% endif %}
+        disabled
+      />
+    </div>
+
+    <!-- Review Dropdown -->
+    <div class="collapse collapse-arrow mt-6 border border-base-300 rounded-box">
+      <input type="checkbox" id="review-dropdown-{{ bottle.id }}" />
+      <label class="collapse-title text-lg font-medium">
+        Add a Review
+      </label>
+      <div class="collapse-content">
+        <form id="addReviewForm-{{ bottle.id }}" class="space-y-4">
+          <!-- Name -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Your Name</span>
+            </label>
+            <input
+              type="text"
+              name="name"
+              class="input input-bordered"
+              placeholder="Enter your name"
+              required
+            />
+          </div>
+
+          <!-- Notes -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Your Review</span>
+            </label>
+            <textarea
+              name="notes"
+              class="textarea textarea-bordered"
+              placeholder="Write your review here"
+              required
+            ></textarea>
+          </div>
+
+          <!-- Score -->
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Score (0-10)</span>
+            </label>
+            <input
+              type="number"
+              name="score"
+              class="input input-bordered"
+              min="0"
+              max="10"
+              required
+            />
+          </div>
+
+          <!-- Submit Button -->
+          <button
+            type="submit"
+            class="btn btn-primary w-full"
+            id="submitReviewButton-{{ bottle.id }}"
+          >
+            Submit Review
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {% for review in bottle.reviews %}
+      <div>
+            {% include "modals/bottle_review.html" %}
+      </div>
+    {% endfor %}
+
+
+    <!-- Close Button -->
+    <label for="modal-{{ bottle.id }}" class="btn btn-sm btn-circle absolute right-2 top-2">✕</label>
+  </div>
+  <!-- Overlay (click outside to close) -->
+  <label for="modal-{{ bottle.id }}" class="modal-backdrop"></label>
+</div>
+<script>
+  document.getElementById("addReviewForm-{{ bottle.id }}").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    // Get form data
+    const formData = new FormData(e.target);
+    const jsonData = {};
+    formData.forEach((value, key) => (jsonData[key] = value));
+    jsonData.bottle_id = {{ bottle.id }}; // Add bottle ID to the data
+    console.log(jsonData);
+    // Send POST request to add the review
+    try {
+      const response = await fetch("/api/add_review", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(jsonData),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        alert("Review added successfully!");
+        e.target.reset(); // Reset the form
+        document.getElementById("modal-{{ bottle.id }}").checked = false; // Close the modal
+      } else {
+        alert(result.error || "Failed to add the review.");
+      }
+    } catch (error) {
+      alert("An error occurred while adding the review.");
+      console.error(error);
+    }
+  });
+</script>

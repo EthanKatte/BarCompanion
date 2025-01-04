@@ -1,0 +1,51 @@
+<div class="collapse collapse-arrow review-component">
+    <input type="checkbox" class="peer" /> <!-- Controls the dropdown -->
+  
+    <!-- Visible Content -->
+    <div class="grid grid-cols-2 items-center space-x-4 collapse-title text-lg font-medium">
+        <div class="grid grid-cols-2">
+        <!-- Bottle Image -->
+        <div class="w-16 h-16">
+            <img
+            src="/static/bottles/{{ review.bottle_image_path }}"
+            alt="{{ review.bottle_name }}"
+            class="object-contain w-full h-full rounded-md"
+            />
+        </div>
+    
+        <!-- Bottle Name -->
+        <div>
+            <h3 class="font-bold text-lg">{{ review.bottle_brand }}</h3>
+            <h3 class="text-base">{{ review.bottle_name }}</h3>
+        </div>
+        </div>
+  
+      <!-- Score Visualization -->
+      <div class="text-sm">
+        <div class="rating flex">
+          <div class="rating">
+            <!-- Render 10 stars, some filled, some empty -->
+            {% for i in range(1, 11) %}
+              <input
+                type="radio"
+                name="rating-{{ review.id }}"
+                class="mask mask-star-2 bg-yellow-400 scale-50"
+                {% if i <= review.score %}checked{% endif %}
+                disabled
+              />
+            {% endfor %}
+          </div>
+          <span class="text-sm font-medium text-gray-700">{{ review.score }}/10</span>
+        </div>
+        {{ review.review_date }}
+      </div>
+    </div>
+  
+    <!-- Hidden Content (Revealed on Click) -->
+    <div class="collapse-content mt-4">
+      <!-- Review Details -->
+      <p class="text-sm text-gray-600">{{ review.notes }} </p>
+
+    </div>
+  </div>
+  

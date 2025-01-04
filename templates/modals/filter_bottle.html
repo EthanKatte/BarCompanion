@@ -1,0 +1,90 @@
+<input type="checkbox" id="filter-bottles-modal" class="modal-toggle" />
+<div class="modal">
+  <div class="modal-box">
+    <!-- Filter by Brand -->
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Filter by Brand</span>
+      </label>
+      <select id="filter-brand" class="select select-bordered">
+        <option value="">All Brands</option>
+        {% for bottle in bottles %}
+        <option value="{{ bottle.brand }}">{{ bottle.brand }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  
+    <!-- Filter by Type -->
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Filter by Type</span>
+      </label>
+      <select id="filter-type" class="select select-bordered">
+        <option value="">All Types</option>
+        {% for bottle in bottles %}
+        <option value="{{ bottle.spirit_type }}">{{ bottle.spirit_type }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Filter by Sub Type -->
+    <div class="form-control">
+        <label class="label">
+            <span class="label-text">Filter by Subtype</span>
+        </label>
+        <select id="filter-subtype" class="select select-bordered">
+            <option value="">All Subtypes</option>
+            {% for bottle in bottles %}
+            <option value="{{ bottle.subtype }}">{{ bottle.subtype }}</option>
+            {% endfor %}
+        </select>
+        </div>
+  
+    <!-- Sort By -->
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Sort By</span>
+      </label>
+      <select id="sort-by" class="select select-bordered">
+        <option value="name">Name</option>
+        <option value="brand">Brand</option>
+        <option value="abv">ABV</option>
+      </select>
+    </div>
+  
+    <!-- Order -->
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Order</span>
+      </label>
+      <select id="order" class="select select-bordered">
+        <option value="asc">Ascending</option>
+        <option value="desc">Descending</option>
+      </select>
+    </div>
+  
+    <!-- Apply Filters Button -->
+    <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+    <script>
+        function applyFilters() {
+          const brand = document.getElementById("filter-brand").value;
+          const type = document.getElementById("filter-type").value;
+          const subtype = document.getElementById("filter-subtype").value;
+          const sortBy = document.getElementById("sort-by").value;
+          const order = document.getElementById("order").value;
+      
+          // Build query parameters
+          const params = new URLSearchParams({
+            brand: brand || "",
+            type: type || "",
+            subtype: subtype || "",
+            sort_by: sortBy,
+            order: order,
+          });
+      
+          // Redirect to the inventory endpoint with query parameters
+          window.location.href = `/inventory?${params.toString()}`;
+        }
+      </script>
+  </div>
+</div>

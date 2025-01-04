@@ -1,0 +1,30 @@
+<div class="collapse collapse-arrow review-component">
+    <input type="checkbox" class="peer" /> <!-- Controls the dropdown -->
+  
+    <!-- Visible Content -->
+    <div class="flex flex-cols-2 items-center space-x-4 collapse-title text-lg font-medium">
+        <h4 class="font-bold text-base">{{ review.reviewer_name }}</h3>
+      <!-- Score Visualization -->
+      <div class="rating flex">
+        <div class="rating">
+          <!-- Render 10 stars, some filled, some empty -->
+          {% for j in range(1, 11) %}
+            <input
+              type="radio"
+              name="rating-{{ review.reviewer_name }}-{{ review.score }}-{{ review.review_date}}"
+              class="mask mask-star-2 bg-yellow-400 scale-50"
+              {% if j <= review.score %}checked{% endif %}
+              disabled
+            />
+          {% endfor %}
+        </div>
+        <span class="text-sm font-medium text-gray-700">{{ review.score }}/10</span>
+      </div>
+    </div>
+    <!-- Hidden Content (Revealed on Click) -->
+    <div class="collapse-content mt-4">
+        <!-- Review Details -->
+        <p class="text-sm text-gray-600">{{ review.notes }} {{ review.review_date }}</p>
+    </div>
+  </div>
+  

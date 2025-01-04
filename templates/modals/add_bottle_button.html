@@ -1,0 +1,139 @@
+<input type="checkbox" id="add-bottle-modal" class="modal-toggle" />
+<div class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">Add a New Bottle</h3>
+    <form id="addBottleForm" class="space-y-4">
+      <!-- Brand -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Brand</span>
+        </label>
+        <input type="text" name="brand" class="input input-bordered" required />
+      </div>
+
+      <!-- Name -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Name</span>
+        </label>
+        <input type="text" name="name" class="input input-bordered" required />
+      </div>
+
+      <!-- ABV -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">ABV</span>
+        </label>
+        <input type="text" name="abv" class="input input-bordered" placeholder="e.g., 40%" required />
+      </div>
+
+      <!-- Type -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Type</span>
+        </label>
+        <input type="text" name="spirit_type" class="input input-bordered" required />
+      </div>
+
+      <!-- Subtype -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Subtype</span>
+        </label>
+        <input type="text" name="subtype" class="input input-bordered" />
+      </div>
+
+      <!-- Description -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Description</span>
+        </label>
+        <textarea name="description" class="textarea textarea-bordered"></textarea>
+      </div>
+
+      <!-- Image -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Take a Photo</span>
+        </label>
+        <div id="camera-container" class="mb-4">
+          <video id="video" autoplay class="max-w-xs"></video>
+          <canvas id="canvas" class="hidden"></canvas>
+        </div>
+        <button type="button" class="btn btn-primary" id="capture-button">Capture Photo</button>
+        <input type="hidden" name="photo" id="photo-data" />
+      </div>
+
+      <!-- Submit Button -->
+      <div class="modal-action">
+        <button type="submit" class="btn btn-primary">Add Bottle</button>
+        <label for="add-bottle-modal" class="btn">Cancel</label>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const captureButton = document.getElementById("capture-button");
+  const photoData = document.getElementById("photo-data");
+
+  // Access the user's camera
+  navigator.mediaDevices
+    .getUserMedia({ video: true })
+    .then((stream) => {
+      video.srcObject = stream;
+    })
+    .catch((err) => {
+      console.error("Camera access denied:", err);
+      alert("Unable to access the camera. Please check your device permissions.");
+    });
+
+  // Capture the photo
+  captureButton.addEventListener("click", () => {
+    const context = canvas.getContext("2d");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convert the image to a data URL and store it in the hidden input
+    const imageData = canvas.toDataURL("image/png");
+    photoData.value = imageData;
+
+    alert("Photo captured! Submit the form to upload it.");
+  });
+
+
+  document.getElementById("addBottleForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    // Get form data
+    const formData = new FormData(e.target);
+    const jsonData = {};
+    formData.forEach((value, key) => (jsonData[key] = value));
+
+    // Send POST request
+    try {
+      const response = await fetch("http://127.0.0.1:5000/api/add_bottle", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(jsonData),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        alert("Bottle added successfully!");
+        e.target.reset(); // Reset the form
+        document.getElementById("add-bottle-modal").checked = false; // Close the modal
+      } else {
+        alert(result.error || "Failed to add the bottle.");
+      }
+    } catch (error) {
+      alert("An error occurred while adding the bottle.");
+      console.error(error);
+    }
+  });
+</script>

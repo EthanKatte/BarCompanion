@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/static/css/tailwind.output.css" rel="stylesheet">
+  <title>{% block title %}Bar Companion{% endblock %}</title>
+</head>
+<body class="bg-gray-100 h-screen">
+  <!-- Navigation Bar -->
+  <nav class="bg-blue-500 text-white p-4">
+    <ul class="flex justify-center space-x-4">
+      <li><a href="/" class="hover:underline">Screensaver</a></li>
+      <li><a href="/home" class="hover:underline">Home</a></li>
+      <li><a href="/inventory" class="hover:underline">Inventory</a></li>
+      <li><a href="/users" class="hover:underline">users</a></li>
+    </ul>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container mx-auto py-8">
+    {% block content %}
+    <!-- Page-specific content will go here -->
+    {% endblock %}
+  </div>
+</body>
+</html>
