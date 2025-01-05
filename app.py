@@ -6,7 +6,11 @@ from database.db_queries import (get_all_bottles,
                                 get_all_users_with_reviews, 
                                 add_user, 
                                 get_user_id_by_name,
-                                add_review)
+                                add_review,
+                                get_all_tables_contents, 
+                                remove_record,
+                                get_random_available_bottle_id
+                                )
 from flask_cors import CORS
 import base64
 import os
@@ -50,6 +54,24 @@ def inventory():
     bottles = get_bottles_from_query(query, params)
     return render_template('inventory.html', bottles=bottles)
 
+@app.route('/users', methods=["GET"])
+def users():
+    users = get_all_users_with_reviews()
+    return render_template('users.html', users=users)
+
+@app.route('/fuckoff', methods=["GET"])
+def admin_page():
+    try:
+        # Fetch all table contents dynamically
+        tables_data = get_all_tables_contents()
+        return render_template("admin.html", tables_data=tables_data)
+    except Exception as e:
+        return f"An error occurred: {str(e)}", 500
+
+
+
+# API Queries
+
 @app.route('/api/add_bottle',  methods=["POST"])
 def api_add_bottle():
     UPLOAD_FOLDER = "./static/bottles"
@@ -91,21 +113,21 @@ def api_add_bottle():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
-@app.route('/api/remove_bottle',  methods=["POST"])
-def api_remove_bottle():
+@app.route('/api/remove_entry', methods=["POST"])
+def api_remove_entry():
     data = request.json
 
-    try: 
-        id = data["id"]
-        remove_bottle(id)
-        return jsonify({"message": "Bottle removed successfully"}), 200
+    try:
+        table = data["table"]
+        record_id = data["id"]
+        result = remove_record(table, record_id)  # Generalized function to remove a record
+        if result > 0:
+            return jsonify({"message": f"Record removed from {table} successfully."}), 200
+        else:
+            return jsonify({"error": f"No record found with ID {record_id} in {table}."}), 404
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
-@app.route('/users', methods=["GET"])
-def users():
-    users = get_all_users_with_reviews()
-    return render_template('users.html', users=users)
 
 @app.route('/api/add_user',  methods=["POST"])
 def api_add_user():
@@ -175,6 +197,13 @@ def api_add_review():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+@app.route('/api/random_bottle_id', methods=["GET"])
+def random_bottle_id():
+    """Fetch the ID of a random available bottle."""
+    random_bottle = get_random_available_bottle_id()
+    if isinstance(random_bottle, dict) and "error" in random_bottle:
+        return random_bottle  # Return error if no bottles are available
+    return jsonify({"id": random_bottle["id"]})
 
 
 if __name__ == '__main__':

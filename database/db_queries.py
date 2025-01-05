@@ -7,9 +7,15 @@ except:
     from setup_db import setup_database
 import sys
 from flask import jsonify
+import random
 
 
 DB_PATH = "./database/bar_companion.db"
+
+def create_connection():
+    """Create and return a connection to the SQLite database."""
+    return sqlite3.connect(DB_PATH)
+
 
 # bottle functions
 def get_all_bottles():
@@ -53,6 +59,21 @@ def get_all_bottles():
 
         return bottle_list
 
+def get_random_available_bottle_id():
+    with create_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Query all available bottles
+        cursor.execute("SELECT id FROM bottles WHERE available = 1")
+        bottles = cursor.fetchall()
+
+        if not bottles:
+            return jsonify({"error": "No available bottles found"}), 404
+
+        # Select a random bottle
+        random_bottle = random.choice(bottles)
+        return random_bottle
 
 def get_bottles_from_query(query, params):
     with create_connection() as conn:
@@ -180,6 +201,13 @@ def get_all_users_with_reviews():
             ]  # Add reviews with bottle names, brands, and image paths
             yield user_dict  # Yield each user with reviews as a dictionary
 
+def remove_user(user_id):
+    """Remove a user from the database by their ID."""
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+    return cursor.rowcount
 
 
 def add_user(name, image_path):
@@ -260,8 +288,63 @@ def add_review(user_id, bottle_id, notes, score):
         except sqlite3.Error as e:
             print(f"An error occurred while inserting the review: {e}")
             return None
+        
+def remove_review(review_id):
+    """Remove a review from the database by its ID."""
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM reviews WHERE id = ?", (review_id,))
+        conn.commit()
+    return cursor.rowcount
+
+
+def get_all_tables_contents():
+    """Retrieve contents of all tables dynamically and return as a dictionary."""
+    all_data = {}
+
+    with create_connection() as conn:
+        conn.row_factory = sqlite3.Row  # Enable dictionary-like access for rows
+        cursor = conn.cursor()
+
+        # Get the list of all tables in the database
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+        tables = [row["name"] for row in cursor.fetchall()]
+
+        # Fetch data from each table
+        for table in tables:
+            cursor.execute(f"SELECT * FROM {table}")
+            all_data[table] = [dict(row) for row in cursor.fetchall()]
+
+    return all_data
 
 #--------------------------------ADMIN FUNCTIONS--------------------------------------------------------------------------
+
+def remove_record(table, record_id):
+    """
+    Remove a record from a specified table by its ID.
+    If the table is 'users', remove all their reviews as well.
+    If the table is 'bottles', remove all reviews associated with the bottle.
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+
+        if table == "users":
+            # Remove reviews associated with the user
+            cursor.execute("DELETE FROM reviews WHERE user_id = ?", (record_id,))
+            print(f"Removed {cursor.rowcount} reviews for user ID {record_id}.")
+        
+        elif table == "bottles":
+            # Remove reviews associated with the bottle
+            cursor.execute("DELETE FROM reviews WHERE bottle_id = ?", (record_id,))
+            print(f"Removed {cursor.rowcount} reviews for bottle ID {record_id}.")
+
+        # Remove the record from the specified table
+        query = f"DELETE FROM {table} WHERE id = ?"
+        cursor.execute(query, (record_id,))
+        conn.commit()
+
+    return cursor.rowcount
+
 
 def delete_database():
     """Delete the existing database file."""
@@ -270,10 +353,6 @@ def delete_database():
         print(f"Deleted database: {DB_PATH}")
     else:
         print(f"No database file found at: {DB_PATH}")
-
-def create_connection():
-    """Create and return a connection to the SQLite database."""
-    return sqlite3.connect(DB_PATH)
 
 def insert_data_from_csv():
     CSV_FILE = './database/bottles_sample_data.csv'

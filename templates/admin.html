@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mx-auto py-8">
+  <h1 class="text-3xl font-bold mb-6">Admin Dashboard</h1>
+      
+  <!-- Manual Removal Form -->
+  <h2 class="text-2xl font-bold mb-6">Remove Entry</h2>
+  <div class="form-control mb-6">
+    <label class="label">
+      <span class="label-text">Table Name</span>
+    </label>
+    <input id="table-name" type="text" placeholder="Enter table name (e.g., bottles)" class="input input-bordered" />
+  </div>
+  <div class="form-control mb-6">
+    <label class="label">
+      <span class="label-text">Record ID</span>
+    </label>
+    <input id="record-id" type="number" placeholder="Enter record ID" class="input input-bordered" />
+  </div>
+  <button class="btn btn-error" onclick="removeEntry()">Remove Entry</button>
+
+  {% for table, rows in tables_data.items() %}
+  <h2 class="text-2xl font-bold mb-4">{{ table|capitalize }} Table</h2>
+  <div class="overflow-x-auto mb-8">
+    <table class="table table-zebra w-full border border-gray-500 rounded-md p-300 ">
+      <thead>
+        <tr>
+          {% if rows %}
+          {% for col in rows[0].keys() %}
+          <th>{{ col }}</th>
+          {% endfor %}
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          {% for col, value in row.items() %}
+          <td>{{ value }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+</div>
+<script>
+    async function removeEntry() {
+      const table = document.getElementById("table-name").value.trim();
+      const id = document.getElementById("record-id").value.trim();
+  
+      if (!table || !id) {
+        showAlert("Table name and record ID are required.", "error");
+        return;
+      }
+  
+      try {
+        const response = await fetch("/api/remove_entry", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ table, id }),
+        });
+  
+        const result = await response.json();
+        if (response.ok) {
+          showAlert(result.message, "success");
+          setTimeout(() => {
+            window.location.reload(); // Refresh the page to reflect changes
+          }, 1000);
+        } else {
+          showAlert(result.error || "Failed to remove the entry.", "error");
+        }
+      } catch (error) {
+        console.error("Error removing entry:", error);
+        showAlert("An error occurred while removing the entry.", "error");
+      }
+    }
+  </script>
+{% endblock %}

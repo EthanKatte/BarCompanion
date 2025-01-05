@@ -17,7 +17,7 @@ def setup_database():
         spirit_type TEXT NOT NULL,
         subtype TEXT,
         description TEXT,
-        isempty BOOL DEFAULT 0 CHECK (isempty IN (0, 1)),
+        available BOOL DEFAULT 1 CHECK (available IN (0, 1)),
         image_path TEXT
     )
     ''')

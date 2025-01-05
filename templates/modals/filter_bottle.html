@@ -88,3 +88,24 @@
       </script>
   </div>
 </div>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const removeDuplicateOptions = (selectId) => {
+      const select = document.getElementById(selectId);
+      const seenValues = new Set();
+
+      Array.from(select.options).forEach((option) => {
+        if (seenValues.has(option.value) && option.value !== "") {
+          option.remove();
+        } else {
+          seenValues.add(option.value);
+        }
+      });
+    };
+
+    // Remove duplicates for each select dropdown
+    removeDuplicateOptions("filter-brand");
+    removeDuplicateOptions("filter-type");
+    removeDuplicateOptions("filter-subtype");
+  });
+</script>

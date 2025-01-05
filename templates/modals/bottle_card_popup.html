@@ -16,12 +16,12 @@
     </figure>
     <!-- Empty Status Checkbox -->
     <div class="flex items-center mt-4">
-      <label for="isempty-{{ bottle.id }}" class="mr-2">Is Empty:</label>
+      <label for="available-{{ bottle.id }}" class="mr-2">Is Available:</label>
       <input
         type="checkbox"
-        id="isempty-{{ bottle.id }}"
+        id="available-{{ bottle.id }}"
         class="checkbox"
-        {% if bottle.isempty == 1 %}checked{% endif %}
+        {% if bottle.available == 1 %}checked{% endif %}
         disabled
       />
     </div>
@@ -123,14 +123,14 @@
 
       const result = await response.json();
       if (response.ok) {
-        alert("Review added successfully!");
+        showAlert("Review added successfully!", "success");
         e.target.reset(); // Reset the form
         document.getElementById("modal-{{ bottle.id }}").checked = false; // Close the modal
       } else {
-        alert(result.error || "Failed to add the review.");
+        showAlert(result.error || "Failed to add the review.", "error");
       }
     } catch (error) {
-      alert("An error occurred while adding the review.");
+      showAlert("An error occurred while adding the review.", "error");
       console.error(error);
     }
   });

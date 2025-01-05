@@ -4,17 +4,25 @@
 
 {% block content %}
 <h1 class="text-3xl font-bold mb-6">Inventory</h1>
-<div class="flex">
-  <div class="border  p-1">
-    <label for="add-bottle-modal" class="btn btn-primary mr-2">Add Bottle + </label>
+<div class="flex items-center justify-between mb-6">
+  <div class="flex items-center space-x-4">
+    <div class="border p-1">
+      <label for="add-bottle-modal" class="btn btn-primary mr-2">Add Bottle +</label>
+    </div>
+    {% include "modals/add_bottle_button.html" %}
+    <div class="border border-gray-500 rounded-md p-1">
+      <label for="filter-bottles-modal" class="btn btn-primary">Filter ☰</label>
+      {% include "modals/filter_bottle.html" %}
+      <label onclick="window.location.href = '/inventory'" class="btn btn-tertiary">Clear Filters ×</label>
+    </div>
   </div>
-  {% include "modals/add_bottle_button.html" %}
-  <div class="border border-gray-500 rounded-md p-1">
-    <label for="filter-bottles-modal" class="btn btn-primary">Filter ☰</label>
-    {% include "modals/filter_bottle.html" %}
-    <label onclick="window.location.href = '/inventory'" class="btn btn-tertiary">Clear Filters ×</label>
+  
+  <!-- Right-aligned Surprise Me Button -->
+  <div class="ml-auto">
+    <button class="btn btn-secondary" onclick="openRandomBottleModal()">Surprise Me!</button>
   </div>
 </div>
+
 <div class="grid grid-cols-3 gap-6">
 
   {% for bottle in bottles %}
@@ -43,4 +51,30 @@
   {% endfor %}
 
 </div>
+<script>
+  async function openRandomBottleModal() {
+    try {
+      const response = await fetch("/api/random_bottle_id");
+      const result = await response.json();
+
+      if (response.ok) {
+        // Open the modal for the random bottle
+        const modalId = `modal-${result.id}`;
+        const modalCheckbox = document.getElementById(modalId);
+
+        if (modalCheckbox) {
+          modalCheckbox.checked = true; // Open the modal
+        } else {
+          showAlert("Modal not found for the selected bottle.", "error");
+        }
+      } else {
+        showAlert(result.error || "Failed to fetch a random bottle.", "error");
+      }
+    } catch (error) {
+      console.error("Error fetching random bottle ID:", error);
+      showAlert("An error occurred while fetching a random bottle.", "error");
+    }
+  }
+</script>
+
 {% endblock %}

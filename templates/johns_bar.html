@@ -4,6 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="/static/css/tailwind.output.css" rel="stylesheet">
+  <style>
+    @keyframes flash {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.2;
+      }
+    }
+
+    .flashing-h {
+      display: inline-block;
+      animation: flash 1.5s infinite;
+    }
+  </style>
   <script>
     // Add the event listener for redirecting to the home page
     document.addEventListener("DOMContentLoaded", function () {
@@ -11,10 +26,12 @@
             window.location.href = "/home";
         });
     });
-</script>
+  </script>
   <title>Home</title>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen  bg-blue-100">
-  <h1 class="text-4xl font-bold mb-8">Welcome to John's Bahr</h1>
+<body class="flex flex-col items-center justify-center min-h-screen bg-blue-100">
+  <h1 class="text-4xl font-bold mb-8">
+    John's Ba<span class="flashing-h">h</span>r
+  </h1>
 </body>
 </html>

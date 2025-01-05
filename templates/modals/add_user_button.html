@@ -47,7 +47,7 @@ navigator.mediaDevices
   })
   .catch((err) => {
     console.error("Camera access denied:", err);
-    alert("Unable to access the camera. Please check your device permissions.");
+    showAlert("Unable to access the camera. Please check your device permissions.", "error");
   });
 
 // Capture the photo
@@ -61,7 +61,7 @@ captureButton.addEventListener("click", () => {
   const imageData = canvas.toDataURL("image/png");
   photoData.value = imageData;
 
-  alert("Photo captured! Submit the form to upload it.");
+  showAlert("Photo captured! Submit the form to upload it.", "success");
 });
 
 // Handle form submission
@@ -85,14 +85,14 @@ document.getElementById("addUserForm").addEventListener("submit", async function
 
     const result = await response.json();
     if (response.ok) {
-      alert("User added successfully!");
+      showAlert("User added successfully!", "success");
       e.target.reset(); // Reset the form
       document.getElementById("add-user-modal").checked = false; // Close the modal
     } else {
-      alert(result.error || "Failed to add the user.");
+      showAlert(result.error || "Failed to add the user.", "error");
     }
   } catch (error) {
-    alert("An error occurred while adding the user.");
+    showAlert("An error occurred while adding the user.", "error");
     console.error(error);
   }
 });
