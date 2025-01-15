@@ -1,0 +1,76 @@
+
+<!-- Add Event Modal -->
+<input type="checkbox" id="add-event-modal" class="modal-toggle" />
+<div class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">Add a New Event</h3>
+    <form id="addEventForm" class="space-y-4">
+      <!-- Event Name -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Event Name</span>
+        </label>
+        <input type="text" name="name" class="input input-bordered" required />
+      </div>
+
+      <!-- Event Date -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Event Date</span>
+        </label>
+        <input type="date" name="event_date" class="input input-bordered" required />
+      </div>
+
+      <!-- Submit Button -->
+      <div class="modal-action">
+        <button type="submit" class="btn btn-primary">Add Event</button>
+        <label for="add-event-modal" class="btn">Cancel</label>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+
+document.getElementById("addEventForm").addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  // Collect form data
+  const formData = new FormData(e.target);
+  const jsonData = {};
+
+  // Convert form data to JSON
+  formData.forEach((value, key) => {
+    jsonData[key] = value; // Directly map form data to JSON
+    });
+
+
+    await sendEventRequest(jsonData);
+
+});
+
+// Function to send POST request
+async function sendEventRequest(data) {
+  try {
+    const response = await fetch("http://192.168.0.145:5000/api/add_event", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+    if (response.ok) {
+      showAlert("Event added successfully!", "success");
+      document.getElementById("addEventForm").reset(); // Reset the form
+      document.getElementById("add-event-modal").checked = false; // Close the modal
+    } else {
+      showAlert(result.error || "Failed to add the event.", "error");
+    }
+  } catch (error) {
+    showAlert("An error occurred while adding the event.", "error");
+    console.error(error);
+  }
+}
+</script>

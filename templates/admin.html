@@ -4,6 +4,25 @@
 <div class="container mx-auto py-8">
   <h1 class="text-3xl font-bold mb-6">Admin Dashboard</h1>
       
+  <!-- Top-right buttons -->
+  <div class="absolute top-6 right-6 flex space-x-4 mt-[40px]">
+    <!-- Admin Button -->
+    <a href="./fuckoff" class="btn btn-primary flex items-center">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 object-contain" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h11M9 21V3m0 18h12" />
+      </svg>
+      Admin
+    </a>
+
+    <!-- Expert Notes Button -->
+    <a href="./expert_notes" class="btn btn-secondary flex items-center">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 object-contain" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-9-8h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2z" />
+      </svg>
+      Expert Notes
+    </a>
+  </div>
+
   <!-- Manual Removal Form -->
   <h2 class="text-2xl font-bold mb-6">Remove Entry</h2>
   <div class="form-control mb-6">
@@ -19,6 +38,17 @@
     <input id="record-id" type="number" placeholder="Enter record ID" class="input input-bordered" />
   </div>
   <button class="btn btn-error" onclick="removeEntry()">Remove Entry</button>
+
+  <!-- Make Bottle Unavailable Form -->
+  <h2 class="text-2xl font-bold mb-6">Make Bottle Unavailable</h2>
+  <div class="form-control mb-6">
+    <label class="label">
+      <span class="label-text">Bottle ID</span>
+    </label>
+    <input id="unavailable-bottle-id" type="number" placeholder="Enter bottle ID" class="input input-bordered" />
+  </div>
+  <button class="btn btn-warning" onclick="makeUnavailable()">Make Unavailable</button>
+
 
   {% for table, rows in tables_data.items() %}
   <h2 class="text-2xl font-bold mb-4">{{ table|capitalize }} Table</h2>
@@ -79,5 +109,39 @@
         showAlert("An error occurred while removing the entry.", "error");
       }
     }
+
+
+  async function makeUnavailable() {
+    const bottleId = document.getElementById("unavailable-bottle-id").value.trim();
+
+    if (!bottleId) {
+      showAlert("Bottle ID is required.", "error");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/make_unavailable", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id: bottleId }),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        showAlert(result.message, "success");
+        setTimeout(() => {
+          window.location.reload(); // Refresh the page to reflect changes
+        }, 1000);
+      } else {
+        showAlert(result.error || "Failed to make the bottle unavailable.", "error");
+      }
+    } catch (error) {
+      console.error("Error making bottle unavailable:", error);
+      showAlert("An error occurred while updating the bottle.", "error");
+    }
+  }
+
   </script>
 {% endblock %}

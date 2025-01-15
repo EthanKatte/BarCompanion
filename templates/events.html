@@ -14,26 +14,18 @@
 <div class="grid grid-cols-3 gap-6">
 
   {% for event in events %}
-
   <div class="card w-full bg-base-100 shadow-lg">
     <!-- Trigger Button -->
     <label for="event-modal-{{ event.id }}" class="cursor-pointer">
-      <figure>
-        <img
-          src="/static/events/{{ event.image_path }}"
-          alt="{{ event.name }}"
-          class="w-[250px] h-[250px] object-contain mx-auto bg-gray-100"
-        />
-      </figure>
       <div class="card-body">
         <h2 class="card-title">{{ event.name }}</h2>
+        <h4 >{{ event.event_date }}</h4>
       </div>
     </label>
-  
+    <script>console.log("{{event.users}}");</script>
     <!-- Modal -->
     {% include "modals/event_card_popup.html" %}
   </div>
-
   {% endfor %}
 
 </div>

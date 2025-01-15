@@ -38,20 +38,23 @@ def get_all_bottles():
             
             # Fetch reviews for this bottle
             cursor.execute("""
-                SELECT reviews.score, reviews.notes, reviews.review_date, users.name AS reviewer_name
+                SELECT reviews.id, reviews.score, reviews.review_text, reviews.review_date, users.name AS reviewer_name
                 FROM reviews
                 JOIN users ON reviews.user_id = users.id
                 WHERE reviews.bottle_id = ?
             """, (bottle["id"],))
             reviews = cursor.fetchall()
 
+            bottle_dict["tasting_notes"] = get_tasting_notes_by_bottle_id(bottle["id"])
+
             # Add reviews to the bottle dictionary
             bottle_dict["reviews"] = [
                 {
                     "reviewer_name": review["reviewer_name"],
                     "score": review["score"],
-                    "notes": review["notes"],
-                    "review_date": review["review_date"]
+                    "notes": review["review_text"],
+                    "review_date": review["review_date"],
+                    "tasting_notes": get_tasting_notes_by_review(review["id"])
                 }
                 for review in reviews
             ]
@@ -89,7 +92,7 @@ def get_bottles_from_query(query, params):
             
             # Fetch reviews for this bottle
             cursor.execute("""
-                SELECT reviews.score, reviews.notes, reviews.review_date, users.name AS reviewer_name
+                SELECT reviews.id, reviews.score, reviews.review_text, reviews.review_date, users.name AS reviewer_name
                 FROM reviews
                 JOIN users ON reviews.user_id = users.id
                 WHERE reviews.bottle_id = ?
@@ -101,8 +104,9 @@ def get_bottles_from_query(query, params):
                 {
                     "reviewer_name": review["reviewer_name"],
                     "score": review["score"],
-                    "notes": review["notes"],
-                    "review_date": review["review_date"]
+                    "notes": review["review_text"],
+                    "review_date": review["review_date"],
+                    "tasting_notes": get_tasting_notes_by_review(review["id"])
                 }
                 for review in reviews
             ]
@@ -196,7 +200,8 @@ def get_all_users_with_reviews():
                     **dict(review), 
                     "bottle_name": review["bottle_name"],
                     "bottle_brand": review["bottle_brand"],
-                    "bottle_image_path": review["bottle_image_path"]
+                    "bottle_image_path": review["bottle_image_path"],
+                    "tasting_notes": get_tasting_notes_by_review(review["id"])
                 } for review in reviews
             ]  # Add reviews with bottle names, brands, and image paths
             yield user_dict  # Yield each user with reviews as a dictionary
@@ -223,6 +228,7 @@ def add_user(name, image_path):
     """
     with create_connection() as conn:
         cursor = conn.cursor()
+        name = name.capitilize()
         try:
             # Insert the user into the database
             cursor.execute(
@@ -248,7 +254,7 @@ def get_user_id_by_name(name):
     """
     with create_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users WHERE name = ?", (name,))
+        cursor.execute("SELECT id FROM users WHERE name = ?", (name.capitilize(),))
         result = cursor.fetchone()
         if result:
             return result[0]  # Return the user ID
@@ -256,7 +262,7 @@ def get_user_id_by_name(name):
     
 #Review Functions
 
-def add_review(user_id, bottle_id, notes, score):
+def add_review(user_id, bottle_id, notes, score, event_id=None):
     """
     Insert a new review into the database.
 
@@ -279,8 +285,8 @@ def add_review(user_id, bottle_id, notes, score):
         try:
             # Insert the review into the database
             cursor.execute(
-                "INSERT INTO reviews (user_id, bottle_id, notes, score) VALUES (?, ?, ?, ?)",
-                (user_id, bottle_id, notes, score)
+                "INSERT INTO reviews (user_id, bottle_id, notes, score, event_id) VALUES (?, ?, ?, ?, ?)",
+                (user_id, bottle_id, notes, score, event_id)
             )
             conn.commit()
             # Return the ID of the newly inserted review
@@ -316,6 +322,306 @@ def get_all_tables_contents():
             all_data[table] = [dict(row) for row in cursor.fetchall()]
 
     return all_data
+
+#Event functions
+
+def get_all_events():
+    """
+    Retrieve all events from the database, including their bottles and participants.
+
+    :return: A list of events, each with a bottles list and participants list.
+    """
+    events = []
+    with create_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get all events
+        cursor.execute("SELECT * FROM events")
+        events_data = cursor.fetchall()
+        
+
+        for event in events_data:
+            event_id = event["id"]
+
+            # Get bottles for the event
+            cursor.execute("""
+                SELECT bottles.*
+                FROM event_drinks
+                JOIN bottles ON event_drinks.bottle_id = bottles.id
+                WHERE event_drinks.event_id = ?
+            """, (event_id,))
+            bottles = [dict(row) for row in cursor.fetchall()]
+
+            # Get participants for the event
+            cursor.execute("""
+                SELECT users.*
+                FROM event_participants
+                JOIN users ON event_participants.user_id = users.id
+                WHERE event_participants.event_id = ?
+            """, (event_id,))
+            participants = [dict(row) for row in cursor.fetchall()]
+
+            # Add event with bottles and participants to the list
+            events.append({
+                "id": event["id"],
+                "folder_path": event["folder_path"],
+                "code": event["code"],
+                "name": event["name"],
+                "event_date": event["event_date"],
+                "bottles": bottles,
+                "users": participants,
+            })
+    return events
+
+def add_event(code, event_date, folder_path, name):
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO events (code, event_date, folder_path, name)
+            VALUES (?, ?, ?, ?)
+        """, (code, event_date, folder_path, name))
+        conn.commit()
+    return cursor.rowcount
+
+def get_event_by_id(event_id):
+    """
+    Retrieve an event by its ID, including associated participants and bottles.
+
+    :param event_id: The ID of the event to retrieve.
+    :return: A dictionary with event details, participants, and bottles.
+    """
+    try:
+        with create_connection() as conn:
+            conn.row_factory = sqlite3.Row  # Enable dictionary-like row access
+            cursor = conn.cursor()
+
+            # Query to fetch the event details
+            cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+            event = cursor.fetchone()
+
+            if not event:
+                return None  # Event not found
+
+            # Query to fetch participants for the event
+            cursor.execute("""
+                SELECT users.*
+                FROM event_participants
+                JOIN users ON event_participants.user_id = users.id
+                WHERE event_participants.event_id = ?
+            """, (event_id,))
+            participants = [dict(row) for row in cursor.fetchall()]
+
+            # Query to fetch bottles for the event
+            cursor.execute("""
+                SELECT bottles.*
+                FROM event_drinks
+                JOIN bottles ON event_drinks.bottle_id = bottles.id
+                WHERE event_drinks.event_id = ?
+            """, (event_id,))
+            bottles = [dict(row) for row in cursor.fetchall()]
+
+            # Return the event details along with participants and bottles
+            return {
+                "id": event["id"],
+                "name": event["name"],
+                "folder_path": event["folder_path"],
+                "event_date": event["event_date"],
+                "users": participants,
+                "bottles": bottles,
+            }
+    except Exception as e:
+        print(f"Error retrieving event by ID: {e}")
+        return None
+    
+def add_bottle_to_event(bottle_ids, event_id):
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        for bottle_id in bottle_ids:
+            cursor.execute("""
+                INSERT INTO event_drinks (event_id, bottle_id)
+                VALUES (?, ?)
+            """, (event_id, bottle_id))
+        conn.commit()
+    return jsonify({"message": "Bottles added successfully"}), 200
+
+def add_user_to_event(user_ids, event_id):
+    """
+    Add users to an event by inserting records into the event_participants table.
+
+    :param user_ids: List of user IDs to add to the event.
+    :param event_id: ID of the event.
+    :return: A JSON response indicating success or failure.
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        for user_id in user_ids:
+            cursor.execute("""
+                INSERT INTO event_participants (event_id, user_id)
+                VALUES (?, ?)
+            """, (event_id, user_id))
+        conn.commit()
+    return jsonify({"message": "Users added successfully"}), 200
+
+# Tasting note functions
+
+def get_tasting_notes():
+    """Retrieve all tasting notes and structure them as a list of dictionaries for Jinja template."""
+    structured_notes = []
+
+    with sqlite3.connect('./database/bar_companion.db') as conn:
+        conn.row_factory = sqlite3.Row  # Enable dictionary-like access for rows
+        cursor = conn.cursor()
+
+        # Fetch all tasting notes from the database based on their tier
+        cursor.execute("SELECT * FROM tasting_notes WHERE tier = 3")
+        generic_rows = cursor.fetchall()  # Tier 3 (Top-level notes)
+
+        cursor.execute("SELECT * FROM tasting_notes WHERE tier = 2")
+        intermediate_rows = cursor.fetchall()  # Tier 2 (Subgroup notes)
+
+        cursor.execute("SELECT * FROM tasting_notes WHERE tier = 1")
+        specific_rows = cursor.fetchall()  # Tier 1 (Subsubgroup notes)
+
+        # Build the hierarchical structure of notes
+        for generic_row in generic_rows:
+            note = {
+                "name": generic_row["name"],
+                "parent": generic_row["parent"],
+                "subnotes": []
+            }
+
+            # Add subnotes (tier 2) under each top-level note (tier 3)
+            for intermediate_row in intermediate_rows:
+                if intermediate_row["parent"] == generic_row["name"]:
+                    subnote = {
+                        "name": intermediate_row["name"],
+                        "subsubnotes": []
+                    }
+
+                    # Add subsubnotes (tier 1) under each subnote (tier 2)
+                    for specific_row in specific_rows:
+                        if specific_row["parent"] == intermediate_row["name"]:
+                            subnote["subsubnotes"].append(specific_row["name"])
+
+                    note["subnotes"].append(subnote)
+
+            # Append the note with its subnotes and subsubnotes to the structured list
+            structured_notes.append(note)
+
+    return structured_notes
+
+def get_tasting_note_id(note_name):
+    """
+    Retrieves the ID of a tasting note from its name.
+
+    Parameters:
+    - note_name (str): The name of the tasting note.
+
+    Returns:
+    - int: The ID of the tasting note, or None if the note is not found.
+    """
+    try:
+        # Establish database connection
+        with create_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Query to retrieve the ID of the tasting note by its name
+            cursor.execute("SELECT id FROM tasting_notes WHERE name = ?", (note_name,))
+            result = cursor.fetchone()
+            
+            # Return the ID if found, otherwise return None
+            if result:
+                return result[0]
+            else:
+                return None  # If no matching note is found
+    except sqlite3.Error as e:
+        print(f"An error occurred while retrieving the tasting note ID: {e}")
+        return None
+    
+def add_note_record(review_id, tasting_note_id):
+    """
+    Adds a new entry to the note_records table.
+
+    Parameters:
+    - review_id (int): The ID of the review to associate the note with.
+    - tasting_note_id (int): The ID of the tasting note to be associated with the review.
+    
+    Returns:
+    - bool: True if the entry was added successfully, False if there was an error.
+    """
+    try:
+        # Establish database connection
+        with create_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Insert the new entry into the note_records table
+            cursor.execute(
+                "INSERT INTO community_notes (review_id, tasting_note_id, sense) VALUES (?, ?, ?)",
+                (review_id, tasting_note_id, "nose")
+            )
+            
+            # Commit the changes
+            conn.commit()
+            
+            # Return True if the insert was successful
+            return True
+    except sqlite3.Error as e:
+        print(f"An error occurred while adding the note record: {e}")
+        return False
+    
+def get_tasting_notes_by_bottle_id(bottle_id):
+    """
+    Retrieves the count of each tasting note found in reviews of a given bottle.
+
+    Parameters:
+    - bottle_id (int): The ID of the bottle.
+    - db_connection (sqlite3.Connection): The SQLite database connection.
+
+    Returns:
+    - list of tuples: Each tuple contains the tasting note name and its count.
+    """
+    query = """
+    SELECT tn.name, COUNT(*) AS note_count
+    FROM reviews r
+    JOIN community_notes nr ON r.id = nr.review_id
+    JOIN tasting_notes tn ON nr.tasting_note_id = tn.id
+    WHERE r.bottle_id = ?
+    GROUP BY tn.name
+    ORDER BY note_count DESC;
+    """
+
+
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(query, (bottle_id,))
+        result = cursor.fetchall()
+    
+    return result
+
+def get_tasting_notes_by_review(review_id):
+    """
+    Retrieves the tasting notes for a given review.
+
+    Parameters:
+    - review_id (int): The ID of the review.
+    - db_connection (sqlite3.Connection): The SQLite database connection.
+
+    Returns:
+    - list of strings: The names of the tasting notes for the review.
+    """
+    query = """
+    SELECT tn.name
+    FROM community_notes nr
+    JOIN tasting_notes tn ON nr.tasting_note_id = tn.id
+    WHERE nr.review_id = ?;
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(query, (review_id,))
+        result = cursor.fetchall()
+
+    return [row[0] for row in result]
 
 #--------------------------------ADMIN FUNCTIONS--------------------------------------------------------------------------
 
@@ -387,6 +693,7 @@ def view_database():
             print(f"Schema for {table[0]}:")
             cursor.execute(f"PRAGMA table_info({table[0]});")
             print(cursor.fetchall())
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "refresh":

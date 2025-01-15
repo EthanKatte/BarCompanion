@@ -1,0 +1,61 @@
+<!-- Add Bottle Modal -->
+<input type="checkbox" id="add-bottle-modal" class="modal-toggle"></input>
+
+<div class="modal">
+  <div class="modal-box w-3/4 max-w-5xl h-3/4">
+    <h3 class="font-bold text-lg">Add Bottles to Event</h3>
+
+    <div class="form-control">
+        <label class="label">
+          <span class="label-text">Select Bottles</span>
+        </label>
+        <div class="max-h-[45rem] overflow-y-auto border border-gray-300 rounded-lg p-4">
+          {% for bottle in bottles %}
+          <div
+            id="bottle-{{ bottle.id }}"
+            class="flex items-center space-x-4 p-2 hover:bg-gray-100"
+            onclick="toggleBottleSelection({{ bottle.id }})"
+          >
+            <img
+              src="/static/bottles/{{ bottle.image_path }}"
+              alt="{{ bottle.name }}"
+              class="w-32 h-32 object-contain rounded"
+            />
+            <span>{{ bottle.name }} ({{ bottle.brand }})</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <!-- Hidden Input for Selected IDs -->
+      <form id="addBottleForm" action="/api/add_bottles_to_event" method="POST">
+        <input type="hidden" name="event_id" value="{{ event.id }}" />
+        <input type="hidden" name="bottle_ids" id="bottleIds" />
+        <button type="submit" class="btn btn-primary mt-4">Add Bottles</button>
+      </form>
+  
+  </div>
+<script>
+let selectedBottleIds = [];
+
+function toggleBottleSelection(id) {
+  const bottleElement = document.getElementById(`bottle-${id}`);
+  const bottleIdsInput = document.getElementById("bottleIds");
+
+  if (selectedBottleIds.includes(id)) {
+    // Deselect the bottle
+    selectedBottleIds = selectedBottleIds.filter((bottleId) => bottleId !== id);
+    bottleElement.classList.remove("bg-blue-100", "border-blue-500");
+  } else {
+    // Select the bottle
+    selectedBottleIds.push(id);
+    bottleElement.classList.add("bg-blue-100", "border-blue-500");
+  }
+
+  // Update the hidden input field with the selected IDs
+  bottleIdsInput.value = selectedBottleIds.join(",");
+  console.log(selectedBottleIds);
+}
+
+
+</script>

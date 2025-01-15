@@ -7,6 +7,10 @@ id,brand,name,abv,image_path,spirit_type,subtype,description
 6,Archie Rose,Single Malt,46%,archie_rose_single_malt.jpg,Whiskey,Single Malt,A rich and aromatic single malt showcasing Australian craftsmanship.
 7,Archie Rose,Six Malt New Make,50%,archie_rose_six_malt.jpg,Whiskey,New Make Spirit,A vibrant and malty new make spirit with a clean and fresh profile.
 8,Johnnie Walker,Gold Label,40%,jw_black_label.jpg,Whiskey,Blended Scotch,A smooth and smoky blended Scotch whisky with a rich taste.
-
+9,Blanton's,Special Reserve,40%,blantons_special_reserve.jpg,Whiskey, Bourbon,description
+10,Blanton's,Private Reserve,46.5%,blantons_private_reserve.jpg,Whiskey, Bourbon,description
+11,Blanton's,Gold,51.5%,blantons_gold.jpg,Whiskey, Bourbon,description
+12,Cragganmore,12 Year Old,40%,cragganmore_12.jpg,Whiskey, Scotch,description
+13,Cragganmore,Distillers Edition,40%,cragganmore_distillers_2023.jpg,Whiskey, Scotch,description
 
 

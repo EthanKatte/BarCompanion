@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="/static/css/tailwind.output.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <title>{% block title %}Bar Companion{% endblock %}</title>
+</head>
+<body class="bg-gray-100 h-screen">
+  <!-- Navigation Bar -->
+  <nav class="bg-blue-500 text-white p-4 flex items-center justify-between">
+    <div></div>
+  </nav>
+  <div id="alert-container" class="absolute fixed top-4 right-4 space-y-4 z-[9999]"></div>
+
+  <!-- Main Content -->
+  <div class="container mx-auto py-8">
+    <h1 class="text-3xl font-bold mb-6">{{event.name}} - {{event.event_date}}</h1>
+
+    <!-- Name Entry Form -->
+    <form id="userNameForm" class="space-y-4">
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Enter Your Name</span>
+        </label>
+        <input
+          type="text"
+          name="name"
+          id="name"
+          class="input input-bordered w-full"
+          placeholder="Enter your name"
+          required
+        />
+      </div>
+      <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+
+    {% include "modals/add_user_event_client.html" %}
+
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    document.getElementById("userNameForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value;
+
+      try {
+        const response = await fetch("/api/user_exists", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: `name=${encodeURIComponent(name)}`,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // If user ID exists, alert success
+          if (data.user_id) {
+            showAlert(`Welcome, ${name}`);
+            window.location.href = "http://192.168.0.145:5000/event_client?id={{event.id}}"
+          } else {
+            console.log("howd i get here?")
+          }
+        } else {
+          // If the server returns an error
+          const errorData = await response.json();
+          if(errorData.error){
+            document.getElementById("add-user-modal").checked = true;
+          }
+          showAlert(errorData.error || "An error occurred.");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        showAlert("Unable to connect to the server.");
+      }
+    });
+
+    function showAlert(message, type = "info", timeout = 3000) {
+    // Create the alert element
+    const alert = document.createElement("div");
+    alert.className = `alert alert-${type} shadow-lg`;
+    alert.role = "alert"
+
+    // Add alert content
+    alert.innerHTML = `
+      <div>
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current flex-shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+          ${
+            type === "success"
+              ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />'
+              : type === "error"
+              ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'
+              : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 18c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z" />'
+          }
+        </svg>
+        <span>${message}</span>
+      </div>
+    `;
+
+    // Add alert to the container
+    const alertContainer = document.getElementById("alert-container");
+    alertContainer.appendChild(alert);
+
+    // Automatically remove the alert after the timeout
+    setTimeout(() => {
+      alert.remove();
+    }, timeout);
+  }
+  </script>
+</body>
+</html>

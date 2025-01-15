@@ -1,0 +1,59 @@
+<!-- Add User Modal -->
+<input type="checkbox" id="add-user-modal" class="modal-toggle"></input>
+
+<div class="modal">
+  <div class="modal-box w-3/4 max-w-5xl h-3/4">
+    <h3 class="font-bold text-lg">Add Users to Event</h3>
+
+    <div class="form-control">
+        <label class="label">
+          <span class="label-text">Select Users</span>
+        </label>
+        <div class="max-h-[45rem] overflow-y-auto border border-gray-300 rounded-lg p-4">
+          {% for user in users %}
+          <div
+            id="user-{{ user.id }}"
+            class="flex items-center space-x-4 p-2 hover:bg-gray-100"
+            onclick="toggleUserSelection({{ user.id }})">
+            <img
+              src="/static/users/{{ user.image_path }}"
+              alt="{{ user.name }}"
+              class="w-32 h-25 object-contain rounded"
+            />
+            <span>{{ user.name }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <!-- Hidden Input for Selected IDs -->
+      <form id="addUserForm" action="/api/add_users_to_event" method="POST">
+        <input type="hidden" name="event_id" value="{{ event.id }}" />
+        <input type="hidden" name="user_ids" id="userIds" />
+        <button type="submit" class="btn btn-primary mt-4">Add users</button>
+      </form>
+  
+  </div>
+<script>
+let selectedUserIds = [];
+
+function toggleUserSelection(id) {
+  const userElement = document.getElementById(`user-${id}`);
+  const userIdsInput = document.getElementById("userIds");
+
+  if (selectedUserIds.includes(id)) {
+    // Deselect the User
+    selectedUserIds = selectedUserIds.filter((userId) => userId !== id);
+    userElement.classList.remove("bg-blue-100", "border-blue-500");
+  } else {
+    // Select the user
+    selectedUserIds.push(id);
+    userElement.classList.add("bg-blue-100", "border-blue-500");
+  }
+
+  // Update the hidden input field with the selected IDs
+  userIdsInput.value = selectedUserIds.join(",");
+  console.log(selectedUserIds);
+}
+</script>
+</div>

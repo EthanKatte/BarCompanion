@@ -15,6 +15,15 @@
       {% include "modals/filter_bottle.html" %}
       <label onclick="window.location.href = '/inventory'" class="btn btn-tertiary">Clear Filters ×</label>
     </div>
+    <label class="flex items-center space-x-2">
+      <input 
+        type="checkbox" 
+        id="hide-unavailable-checkbox" 
+        class="checkbox checkbox-primary"
+        onchange="toggleAvailableBottles()"
+      />
+      <span>Hide Unavailable</span>
+    </label>
   </div>
   
   <!-- Right-aligned Surprise Me Button -->
@@ -23,11 +32,11 @@
   </div>
 </div>
 
-<div class="grid grid-cols-3 gap-6">
+<div id="bottle-grid" class="grid grid-cols-3 gap-6">
 
   {% for bottle in bottles %}
 
-  <div class="card w-full bg-base-100 shadow-lg">
+  <div class="card w-full bg-base-100 shadow-lg" data-available="{{ bottle.available }}">
     <!-- Trigger Button -->
     <label for="modal-{{ bottle.id }}" class="cursor-pointer">
       <figure>
@@ -74,6 +83,18 @@
       console.error("Error fetching random bottle ID:", error);
       showAlert("An error occurred while fetching a random bottle.", "error");
     }
+  }
+
+  function toggleAvailableBottles() {
+    const bottles = document.querySelectorAll("#bottle-grid .card");
+    console.log("toggling");
+    bottles.forEach((bottle) => {
+      const isAvailable = bottle.getAttribute("data-available") === "1";
+      if (!isAvailable) {
+        bottle.classList.toggle("hidden");
+
+      }
+    });
   }
 </script>
 

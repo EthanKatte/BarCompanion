@@ -6,6 +6,225 @@
   <link href="/static/css/tailwind.output.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <title>{% block title %}Bar Companion{% endblock %}</title>
+  <style>
+
+  /* Tier 3 - Dark Red */
+  .tasting-note-fruity {
+      background-color: #5e1f1f;
+      color: #ffffff;
+  }
+
+  /* Tier 2 - Medium Red */
+  .tasting-note-cookedfruit,
+  .tasting-note-berry,
+  .tasting-note-tropical,
+  .tasting-note-stonefruit,
+  .tasting-note-fruit {
+      background-color: #8c3434;
+      color: #ffffff;
+  }
+
+  /* Tier 1 - Light Red */
+  .tasting-note-marmalade,
+  .tasting-note-jam,
+  .tasting-note-applepie,
+  .tasting-note-raspberry,
+  .tasting-note-blackberry,
+  .tasting-note-blueberry,
+  .tasting-note-strawberry,
+  .tasting-note-orange,
+  .tasting-note-lemon,
+  .tasting-note-orangepeel,
+  .tasting-note-coconut,
+  .tasting-note-banana,
+  .tasting-note-plum,
+  .tasting-note-peach,
+  .tasting-note-cherry,
+  .tasting-note-apricot,
+  .tasting-note-raisin,
+  .tasting-note-grape,
+  .tasting-note-fig,
+  .tasting-note-apple {
+      background-color: #e5a3a3;
+      color: #333333;
+  }
+
+  /* Greens Theme */
+
+  /* Tier 3 - Dark Green */
+  .tasting-note-spice {
+      background-color: #1f4d3a;
+      color: #ffffff;
+  }
+
+  /* Tier 2 - Medium Green */
+  .tasting-note-bakingspice,
+  .tasting-note-savoryspice {
+      background-color: #347d5e;
+      color: #ffffff;
+  }
+
+  /* Tier 1 - Light Green */
+  .tasting-note-nutmeg,
+  .tasting-note-clove,
+  .tasting-note-coriander,
+  .tasting-note-cinnamon,
+  .tasting-note-staranise,
+  .tasting-note-whitepepper,
+  .tasting-note-spearmint,
+  .tasting-note-herbal,
+  .tasting-note-fennel,
+  .tasting-note-dill,
+  .tasting-note-blackpepper {
+      background-color: #a3d5c1;
+      color: #333333;
+  }
+
+
+  /* Blues Theme */
+
+  /* Tier 3 - Dark Blue */
+  .tasting-note-sweet {
+      background-color: #1f3a5e;
+      color: #ffffff;
+  }
+
+  /* Tier 2 - Medium Blue */
+  .tasting-note-vanillas,
+  .tasting-note-soda,
+  .tasting-note-dessert,
+  .tasting-note-chocolates {
+      background-color: #345e8c;
+      color: #ffffff;
+  }
+
+  /* Tier 1 - Light Blue */
+  .tasting-note-vanilla,
+  .tasting-note-custard,
+  .tasting-note-cremebrulee,
+  .tasting-note-cherrysoda,
+  .tasting-note-cremesoda,
+  .tasting-note-rootbeer,
+  .tasting-note-cola,
+  .tasting-note-brownsugar,
+  .tasting-note-butterscotch,
+  .tasting-note-caramel,
+  .tasting-note-grahamcracker,
+  .tasting-note-honey,
+  .tasting-note-licorice,
+  .tasting-note-maplesyrup,
+  .tasting-note-marshmellow,
+  .tasting-note-molasses,
+  .tasting-note-toffee,
+  .tasting-note-bitterchocolate,
+  .tasting-note-milkchocolate,
+  .tasting-note-chocolatemocha,
+  .tasting-note-chocolatemilk {
+      background-color: #a3c1e5;
+      color: #333333;
+  }
+
+
+  /* Yellows Theme */
+
+  /* Tier 3 - Dark Yellow */
+  .tasting-note-grain {
+      background-color: #7a5e1f;
+      color: #ffffff;
+  }
+
+  /* Tier 2 - Medium Yellow */
+  .tasting-note-corn,
+  .tasting-note-malt,
+  .tasting-note-rye,
+  .tasting-note-bread {
+      background-color: #b38b34;
+      color: #ffffff;
+  }
+
+  /* Tier 1 - Light Yellow */
+  .tasting-note-cereal,
+  .tasting-note-cocoa,
+  .tasting-note-bread,
+  .tasting-note-buckwheatpancakes {
+      background-color: #e5c585;
+      color: #333333;
+  }
+
+  /* Browns Theme */
+
+  /* Tier 3 - Dark Brown */
+  .tasting-note-wood {
+      background-color: #5a4033;
+      color: #ffffff;
+  }
+
+  /* Tier 2 - Medium Brown */
+  .tasting-note-oak,
+  .tasting-note-pine,
+  .tasting-note-nut,
+  .tasting-note-earthy {
+      background-color: #8c5b44;
+      color: #ffffff;
+  }
+
+  /* Tier 1 - Light Brown */
+  .tasting-note-smokyoak,
+  .tasting-note-sweetoak,
+  .tasting-note-toastedoak,
+  .tasting-note-cedar,
+  .tasting-note-almond,
+  .tasting-note-hazelnut,
+  .tasting-note-peanut,
+  .tasting-note-pecan,
+  .tasting-note-walnut,
+  .tasting-note-coffee,
+  .tasting-note-leather,
+  .tasting-note-tobacco,
+  .tasting-note-peat,
+  .tasting-note-smoke {
+      background-color: #d4b7a3;
+      color: #333333;
+  }
+
+
+  /* Pinks Theme */
+
+  /* Tier 3 - Dark Pink */
+  .tasting-note-floral {
+      background-color: #7a244f;
+      color: #ffffff;
+  }
+
+  /* Tier 1 - Light Pink */
+  .tasting-note-rose,
+  .tasting-note-heather,
+  .tasting-note-violet {
+      background-color: #e6a5c1;
+      color: #333333;
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  </style>
 </head>
 <body class="bg-gray-100 h-screen">
   <!-- Navigation Bar -->
@@ -32,6 +251,11 @@
       <li>
         <a href="/users" class="hover:underline flex items-center">
           <i class="fas fa-users text-3xl"></i>
+        </a>
+      </li>
+      <li>
+        <a href="/events" class="hover:underline flex items-center">
+          <i class="fas fa-calendar-days text-3xl"></i>
         </a>
       </li>
     </ul>
@@ -80,4 +304,5 @@
     }, timeout);
   }
 </script>
+
 </html>

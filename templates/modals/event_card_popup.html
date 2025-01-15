@@ -1,0 +1,74 @@
+<input type="checkbox" id="event-modal-{{ event.id }}" class="modal-toggle" />
+<div class="modal">
+  <div class="modal-box relative">
+    <!-- Modal Content -->
+    <h3 class="font-bold text-lg">{{ event.name }}</h3>
+    <h4 class="font-bold text-lg">{{ event.event_date }}</h4>
+
+    <figure class="my-4">
+      <div id="qrcode-{{event.id}}"></div>
+    </figure>
+    <script>
+      document.addEventListener("DOMContentLoaded", generateQRCode);
+  
+      function generateQRCode() {
+        const url = `http://192.168.0.145:5000/event?id={{ event.id }}&version=client`;
+        const qrCodeContainer = document.getElementById("qrcode-{{event.id}}");
+  
+        // Clear any existing QR code
+        qrCodeContainer.innerHTML = "";
+  
+        // Generate QR code
+        new QRCode(qrCodeContainer, {
+          text: url,
+          width: 200,  
+          height: 200, 
+        });
+      }
+    </script>
+    <div class="grid grid-cols-2">
+      <div class="btn btn-primary mr-2" onclick="window.location.href='http://192.168.0.145:5000/event?id={{ event.id }}&version=console'">Event Console</div>
+      <div class="btn btn-primary mr-2" onclick="window.location.href='http://192.168.0.145:5000/event?id={{ event.id }}&version=client'">Event Client</div>
+    </div>
+    <h3 class="font-bold text-lg mt-4">Bottles</h3>
+    {% for bottle in event.bottles %}
+    <div class="grid grid-cols-[auto,1fr] items-center gap-4 mb-4 mt-4">
+      <!-- Bottle Image -->
+      <img
+        src="/static/bottles/{{ bottle.image_path }}"
+        alt="{{ bottle.brand }} - {{ bottle.name }}"
+        class="w-32 h-32 object-contain rounded-md"
+      />
+    
+      <!-- Bottle Details -->
+      <div>
+        <h3 class="font-bold text-lg">{{ bottle.brand }} - {{ bottle.name }}</h3>
+      </div>
+    </div>
+    {% endfor %}
+    
+    <h3 class="font-bold text-lg mt-4">Participants</h3>
+    {% for user in event.users %}
+    <div class="grid grid-cols-[auto,1fr] items-center gap-4 mb-4 mt-4">
+      <!-- user Image -->
+      <img
+        src="/static/users/{{ user.image_path }}"
+        alt="{{ user.brand }} - {{ user.name }}"
+        class="w-32 h-32 object-contain rounded-md"
+      />
+    
+      <!-- user Details -->
+      <div>
+        <h3 class="font-bold text-lg">{{ user.name }}</h3>
+      </div>
+    </div>
+    {% endfor %}
+    <!-- Close Button -->
+    <label for="event-modal-{{ event.id }}" class="btn btn-sm btn-circle absolute right-2 top-2">✕</label>
+  </div>
+
+  <!-- Overlay (click outside to close) -->
+  <label for="event-modal-{{ event.id }}" class="modal-backdrop"></label>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+

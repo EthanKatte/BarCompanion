@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Event Console - {{ event.code }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto py-8">
+  <h1 class="text-3xl font-bold mb-6">{{ event.code }} Event Console</h1>
+
+  <!-- QR Code Section -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-xl font-bold mb-2">Event QR Code</h2>
+      <div id="qrcode" class="border p-4"></div>
+    </div>
+
+    <!-- Camera Preview -->
+    <div>
+      <h2 class="text-xl font-bold mb-2">Take Event Photos</h2>
+      <div id="camera-preview" class="mb-4">
+        <video id="video" autoplay class="w-64 h-48 border border-gray-500"></video>
+        <canvas id="canvas" class="hidden"></canvas>
+      </div>
+      <form id="photoForm" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="event_id" value="{{ event.id }}" />
+        <input type="hidden" name="image_data" id="photo-data" />
+        <button type="button" id="capture-button" class="btn btn-primary">Take Photo</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="container mx-auto py-8">
+    <h2 class="text-2xl font-bold mb-4">Event Photo Gallery</h2>
+    <div class="grid grid-cols-3 gap-4">
+      {% for image in images %}
+      <div class="card bg-base-100 shadow-md">
+        <figure>
+          <img
+            src="{{ image }}"
+            alt="Event Photo"
+            class="w-full h-48 object-cover rounded-md"
+          />
+        </figure>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Event Bottles -->
+
+  <div class="mb-6">
+    <div class="grid-cols-2">
+        <h2 class="text-2xl font-bold mb-4">Event Bottles</h2>
+        <!-- Trigger Button for Modal -->
+        <button class="btn btn-primary mb-4" onclick="document.getElementById('add-bottle-modal').checked = true;">
+            Add Bottles
+        </button>
+        {% include "modals/add_event_bottle_button.html" %}
+    </div>
+
+    <div class="grid grid-cols-3 gap-6">
+        {% for bottle in event.bottles %}
+        <div class="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+          <!-- Bottle Image -->
+          <div class="p-4">
+            <img
+              src="/static/bottles/{{ bottle.image_path }}"
+              alt="{{ bottle.brand }} - {{ bottle.name }}"
+              class="w-full h-48 object-contain rounded-md"
+            />
+          </div>
+      
+          <!-- Bottle Details -->
+          <div class="p-4 text-center">
+            <h3 class="font-bold text-lg mb-2">{{ bottle.brand }} - {{ bottle.name }}</h3>
+            <p class="text-gray-600 text-sm">ABV: {{ bottle.abv }}</p>
+            <p class="text-gray-600 text-sm">{{ bottle.description }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      
+
+  </div>
+
+  <!-- Event user -->
+  <div>
+    <h2 class="text-2xl font-bold mb-4">Event Participants</h2>
+        <button class="btn btn-primary mb-4" onclick="document.getElementById('add-user-modal').checked = true;">
+            Add Participant
+        </button>
+        {% include "modals/add_event_user_button.html" %}
+    <div class="grid grid-cols-3 gap-6">
+      {% for user in event.users %}
+      <div class="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+        <!-- Bottle Image -->
+        <div class="p-4">
+          <img
+            src="/static/users/{{ user.image_path }}"
+            alt="{{ user.name }}"
+            class="w-full h-48 object-contain rounded-md"
+          />
+        </div>
+    
+        <!-- user Details -->
+        <div class="p-4 text-center">
+          <h3 class="font-bold text-lg mb-2">{{ user.name }}</h3>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Generate QR Code
+    const qrCodeContainer = document.getElementById("qrcode");
+    const url = `http://192.168.0.145:5000/event?id={{ event.id }}&version=client`;
+    new QRCode(qrCodeContainer, {
+      text: url,
+      width: 200,
+      height: 200,
+    });
+
+    // Camera setup
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const photoData = document.getElementById("photo-data");
+    const captureButton = document.getElementById("capture-button");
+
+    // Access the camera
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((stream) => {
+        video.srcObject = stream;
+      })
+      .catch((err) => {
+        console.error("Camera access denied:", err);
+        showAlert("Unable to access the camera. Please check your device permissions.", "error");
+      });
+
+    // Capture photo
+    captureButton.addEventListener("click", () => {
+      const context = canvas.getContext("2d");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Convert the image to a Base64 string
+      const imageData = canvas.toDataURL("image/png");
+      photoData.value = imageData;
+
+      // Submit the photo to the server
+      const formData = new FormData(document.getElementById("photoForm"));
+      fetch("/api/upload_event_photo_b64", {
+        method: "POST",
+        body: formData,
+      })
+        .then((response) => response.json())
+        .then((result) => {
+          if (result.message) {
+            showAlert("Photo uploaded successfully!", "success");
+          } else {
+            showAlert(result.error || "Failed to upload photo.", "error");
+          }
+        })
+        .catch((error) => {
+          console.error("Error uploading photo:", error);
+          showAlert("An error occurred while uploading the photo.", "error");
+        });
+    });
+  });
+</script>
+{% endblock %}

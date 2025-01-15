@@ -25,6 +25,19 @@
         disabled
       />
     </div>
+    
+    <!-- Tasting Notes Section -->
+    <div class="my-4 p-4 border border-base-300 rounded-lg bg-base-100 shadow-md">
+      <h4 class="font-semibold text-lg text-center mb-4">Tasting Notes</h4>
+      <div class="flex flex-wrap gap-2 justify-center">
+        {% for tasting_note in bottle.tasting_notes %}
+          <div class="badge badge-lg tasting-note-{{ tasting_note[0].replace(' ', '').lower() }}">
+            <span class="font-medium">{{ tasting_note[0] }}</span>
+            <span class="ml-2 text-sm">({{ tasting_note[1] }})</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
 
     <!-- Review Dropdown -->
     <div class="collapse collapse-arrow mt-6 border border-base-300 rounded-box">
@@ -34,48 +47,96 @@
       </label>
       <div class="collapse-content">
         <form id="addReviewForm-{{ bottle.id }}" class="space-y-4">
-          <!-- Name -->
+        <!-- Name Dropdown -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Your Name</span>
+          </label>
+          <select name="name" class="select select-bordered text-2xl" required>
+            <option disabled selected>Select your name</option>
+            {% for user in users %}
+              <option value="{{ user.id }}">{{ user.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+                    <!-- Tasting Notes with Checkboxes -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Your Name</span>
+              <span class="label-text text-xl">Select Tasting Notes:</span>
             </label>
-            <input
-              type="text"
-              name="name"
-              class="input input-bordered"
-              placeholder="Enter your name"
-              required
-            />
+
+            {% for three_note in tasting_notes %}
+              <!-- Parent collapse component with a checkbox for selecting the parent note -->
+              <div class="flex items-center mt-4">
+                <!-- Checkbox for selecting the parent note (tier 3) -->
+                <input type="checkbox" id="checkbox-{{ three_note.name }}" class="checkbox checkbox-primary mr-4" name="note_{{ three_note.name }}" />
+                <!-- Collapse element next to the checkbox -->
+                <div class="collapse collapse-arrow">
+                  <input type="checkbox" id="collapse-{{ three_note.name }}" class="peer" />
+                  <label class="collapse-title text-lg">{{ three_note.name }}</label>
+                  <div class="collapse-content ml-4">
+                    
+                    <!-- Subnotes (Tier 2) with checkboxes -->
+                    {% for two_note in three_note.subnotes %}
+                      <div class="flex items-center mt-2">
+                        <!-- Checkbox for selecting the subnote (tier 2) -->
+                        <input type="checkbox" id="checkbox-{{ two_note.name }}" class="checkbox checkbox-primary mr-4" name="subnote_{{ two_note.name }}" />
+                        <!-- Collapse for the subnote -->
+                        <div class="collapse collapse-arrow">
+                          <input type="checkbox" id="collapse-{{ two_note.name }}" class="peer" />
+                          <label class="collapse-title text-md">{{ two_note.name }}</label>
+                          <div class="collapse-content ml-4">
+                            <!-- Subsubnotes (Tier 1) with checkboxes -->
+                            {% for one_note in two_note.subsubnotes %}
+                              <div class="form-control">
+                                <label class="label cursor-pointer">
+                                  <input type="checkbox" name="subsubnote_{{ one_note }}" class="checkbox checkbox-primary" />
+                                  <span class="label-text">{{ one_note }}</span>
+                                </label>
+                              </div>
+                            {% endfor %}
+                          </div>
+                        </div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
           </div>
 
-          <!-- Notes -->
+          <!-- review_text -->
           <div class="form-control">
             <label class="label">
               <span class="label-text">Your Review</span>
             </label>
             <textarea
-              name="notes"
+              name="review_text"
               class="textarea textarea-bordered"
               placeholder="Write your review here"
-              required
             ></textarea>
           </div>
 
           <!-- Score -->
+          <!-- Score with Stars -->
           <div class="form-control">
             <label class="label">
-              <span class="label-text">Score (0-10)</span>
+              <span class="label-text">Score</span>
             </label>
-            <input
-              type="number"
-              name="score"
-              class="input input-bordered"
-              min="0"
-              max="10"
-              required
-            />
+            <div class="rating justify-between">
+              <input type="radio" name="score" value="1" class="mask mask-star-2 bg-yellow-500" required />
+              <input type="radio" name="score" value="2" class="mask mask-star-2 bg-yellow-500" />
+              <input type="radio" name="score" value="3" class="mask mask-star-2 bg-yellow-500" />
+              <input type="radio" name="score" value="4" class="mask mask-star-2 bg-yellow-500" />
+              <input type="radio" name="score" value="5" class="mask mask-star-2 bg-yellow-500" />
+              <input type="radio" name="score" value="6" class="mask mask-star-2 bg-yellow-500" />
+              <input type="radio" name="score" value="7" class="mask mask-star-2 bg-yellow-500" />
+              <input type="radio" name="score" value="8" class="mask mask-star-2 bg-yellow-500" />
+              <input type="radio" name="score" value="9" class="mask mask-star-2 bg-yellow-500" />
+              <input type="radio" name="score" value="10" class="mask mask-star-2 bg-yellow-500" />
+            </div>
           </div>
-
           <!-- Submit Button -->
           <button
             type="submit"
@@ -108,8 +169,22 @@
     // Get form data
     const formData = new FormData(e.target);
     const jsonData = {};
-    formData.forEach((value, key) => (jsonData[key] = value));
+      // Collect all form data, including the selected notes (checkboxes)
+    formData.forEach((value, key) => {
+        // For checkbox keys, if the checkbox is checked, we push the selected note to the jsonData
+        if (key.startsWith('note_') || key.startsWith('subnote_') || key.startsWith('subsubnote_')) {
+        if (!jsonData.notes) {
+            jsonData.notes = [];
+        }
+        jsonData.notes.push(key);
+        } else {
+        jsonData[key] = value;
+        }
+    });
+
+
     jsonData.bottle_id = {{ bottle.id }}; // Add bottle ID to the data
+
     console.log(jsonData);
     // Send POST request to add the review
     try {

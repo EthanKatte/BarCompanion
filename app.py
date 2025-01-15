@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect
 from database.db_queries import (get_all_bottles, 
                                 add_bottle, 
                                 remove_bottle, 
@@ -9,7 +9,18 @@ from database.db_queries import (get_all_bottles,
                                 add_review,
                                 get_all_tables_contents, 
                                 remove_record,
-                                get_random_available_bottle_id
+                                get_random_available_bottle_id,
+                                update_bottle,
+                                get_all_events,
+                                add_event,
+                                get_event_by_id,
+                                add_bottle_to_event,
+                                add_user_to_event,
+                                get_tasting_notes,
+                                add_note_record,
+                                get_tasting_note_id,
+                                get_tasting_notes_by_bottle_id,
+                                get_tasting_notes_by_review
                                 )
 from flask_cors import CORS
 import base64
@@ -31,8 +42,9 @@ def inventory():
     # Example data to pass to the inventory page
     if len(request.args) == 0:
         bottles = get_all_bottles()
-        print(bottles)
-        return render_template('inventory.html', bottles=bottles)
+        tasting_notes = get_tasting_notes()
+        users = list(get_all_users_with_reviews())
+        return render_template('inventory.html', bottles=bottles, tasting_notes=tasting_notes, users=users)
 
     filters = {
         "brand": request.args.get("brand"),
@@ -52,22 +64,81 @@ def inventory():
 
     query += f" ORDER BY {sort_by} {order.upper()}"  # Add sorting
     bottles = get_bottles_from_query(query, params)
-    return render_template('inventory.html', bottles=bottles)
+    tasting_notes = get_tasting_notes()
+    users = get_all_users_with_reviews()
+    return render_template('inventory.html', bottles=bottles, tasting_notes=tasting_notes, users=users)
 
 @app.route('/users', methods=["GET"])
 def users():
     users = get_all_users_with_reviews()
     return render_template('users.html', users=users)
 
+@app.route("/events", methods=["GET"])
+def events():
+    try:
+        events = get_all_events()  # Call the database function
+        return render_template('events.html', events=events)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/event", methods=["GET"])
+def event():
+    id = request.args.get('id')
+    version = request.args.get('version')
+
+    if version == "client":
+        event = get_event_by_id(id)
+        return render_template("event_client_login.html", event=event)
+    elif version == "console":
+        event=get_event_by_id(id)
+        bottles = get_all_bottles()
+        users = get_all_users_with_reviews()
+
+            # Fetch all image files in the directory
+        try:
+            images = [
+                f"{event['folder_path']}/{file}" for file in os.listdir(event['folder_path']) if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))
+            ]
+        except FileNotFoundError:
+            images = []  # If the folder doesn't exist, return an empty list
+
+
+
+        if not event:
+            return "An error occurred: unknown event provided."
+        return render_template("event_console.html", event=event, bottles=bottles, users=users, images=images)
+    else:
+        return "An error occurred: unknown URL version provided. Options are client/console.", 500
+
+@app.route("/event_client", methods=["GET"])
+def event_client():
+    id = request.args.get('id')
+    user_id = request.cookies.get("user_id")
+    tasting_notes = get_tasting_notes()
+    if user_id:
+        event = get_event_by_id(id)
+        user = [u for u in list(get_all_users_with_reviews()) if u["id"] == int(user_id)][0]
+
+        return render_template("event_client.html", event=event, user=user, tasting_notes=tasting_notes)
+    else:
+        return jsonify({"error": "User ID cookie not found"}), 404
+
+
 @app.route('/fuckoff', methods=["GET"])
 def admin_page():
+    print(get_tasting_notes())
     try:
-        # Fetch all table contents dynamically
         tables_data = get_all_tables_contents()
         return render_template("admin.html", tables_data=tables_data)
     except Exception as e:
         return f"An error occurred: {str(e)}", 500
 
+@app.route("/expert_notes", methods=["GET"])
+def expert_notes():
+    tasting_notes = get_tasting_notes()
+    bottles = get_all_bottles()
+
+    return render_template("expert_notes.html", bottles=bottles, tasting_notes=tasting_notes)
 
 
 # API Queries
@@ -76,7 +147,6 @@ def admin_page():
 def api_add_bottle():
     UPLOAD_FOLDER = "./static/bottles"
     data = request.json  # Parse JSON data from the request body
-    print(data)
 
     try:
         # Extract Base64 image data
@@ -128,6 +198,18 @@ def api_remove_entry():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+@app.route('/api/make_unavailable', methods=["POST"])
+def api_make_unavailable():
+    data = request.json
+    try:
+        record_id = data["id"]
+        result = update_bottle(record_id, available=0)  # Generalized function to remove a record
+        if result > 0:
+            return jsonify({"message": f"Bottle {record_id} is now unavailable."}), 200
+        else:
+            return jsonify({"error": f"No record found with ID {record_id} in Bottles."}), 404
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
 @app.route('/api/add_user',  methods=["POST"])
 def api_add_user():
@@ -165,21 +247,67 @@ def api_add_user():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+def add_notes_to_review(notes, review_id):
+    """
+    Adds a list of notes to a review by associating each note with a tasting note ID and review ID.
+    
+    Parameters:
+    - notes (list): A list of selected checkbox names (e.g., note_Fruity, subnote_cooked_fruit).
+    - review_id (int): The ID of the review to associate the notes with.
+    
+    Returns:
+    - int: The number of notes added to the review, or None if an error occurs.
+    """
+    stripped_notes = []
+
+    # Strip the prefixes from each note and add to the list
+    for note in notes:
+        # Strip the prefix from the note name (note_, subnote_, subsubnote_)
+        if note.startswith("note_"):
+            stripped_notes.append(note[len("note_"):])  # Remove "note_" prefix
+        elif note.startswith("subnote_"):
+            stripped_notes.append(note[len("subnote_"):])  # Remove "subnote_" prefix
+        elif note.startswith("subsubnote_"):
+            stripped_notes.append(note[len("subsubnote_"):])  # Remove "subsubnote_" prefix
+        else:
+            stripped_notes.append(note)
+
+    # Now add each stripped note to the review
+    for note_name in stripped_notes:
+        # Retrieve the tasting note ID from the note name
+        tasting_note_id = get_tasting_note_id(note_name)
+        
+        if tasting_note_id:
+            # Add the note record to the database
+            success = add_note_record(review_id, tasting_note_id)
+            
+            if not success:
+                print(f"Failed to add the note: {note_name}")
+        
+    return len(stripped_notes)  # Return the number of notes added
+
+
 @app.route('/api/add_review', methods=["POST"])
 def api_add_review():
     """
     API endpoint to add a review for a specific bottle by a user.
     """
     data = request.json  # Parse JSON data from the request body
+    print(data)
     try:
         # Extract data from the request
         name = data.get('name')
+        review = data.get('review')
         notes = data.get('notes')
         score = int(data.get('score'))
         bottle_id = int(data.get('bottle_id'))
+        if data.get('event_id'):
+            event_id = int(data.get('event_id'))
+        else:
+            event_id = None
 
         # Validate required fields
-        if not all([name, notes, score, bottle_id]):
+        if not all([name, review, score, bottle_id]):
             return jsonify({"error": "Missing required fields"}), 400
 
         # Get user ID based on the name
@@ -188,7 +316,10 @@ def api_add_review():
             return jsonify({"error": f"User with name '{name}' not found"}), 404
 
         # Add the review to the database
-        review_id = add_review(user_id, bottle_id, notes, score)
+        review_id = add_review(user_id, bottle_id, review, score, event_id=event_id)
+        if notes:
+            add_notes_to_review(notes, review_id)
+
         if review_id:
             return jsonify({"message": "Review added successfully", "review_id": review_id}), 201
         else:
@@ -205,6 +336,118 @@ def random_bottle_id():
         return random_bottle  # Return error if no bottles are available
     return jsonify({"id": random_bottle["id"]})
 
+@app.route('/api/add_event', methods=["POST"])
+def api_add_event():
+    try:
+        data = request.json
+        event_date = data.get("event_date")
+        name = data.get("name")
+        folder_path = "./static/events/" + name + str(event_date)
+        code = name + str(event_date)
+
+        if not name or not event_date:
+            return jsonify({"error": "Name and event date are required."}), 400
+
+        # Add event to the database
+        add_event(code, event_date, folder_path, name)
+
+        return jsonify({"message": "Event added successfully!"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/add_bottles_to_event', methods=["POST"])
+def api_add_bottles_to_event():
+    event_id = request.form.get("event_id")
+    bottle_ids = request.form.get("bottle_ids", "").split(",")
+    print(event_id)
+    if not event_id or not bottle_ids:
+        return jsonify({"error": "Event ID and bottle IDs are required"}), 400
+
+    try:
+        add_bottle_to_event(bottle_ids, event_id)
+        return redirect(request.referrer)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/add_users_to_event', methods=["POST"])
+def api_add_users_to_event():
+    event_id = request.form.get("event_id")
+    user_ids = request.form.get("user_ids", "").split(",")
+    if not event_id or not user_ids:
+        return jsonify({"error": "Event ID and user IDs are required"}), 400
+
+    try:
+        add_user_to_event(user_ids, event_id)
+        return redirect(request.referrer)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/user_exists', methods=["POST"])
+def user_exists():
+    name = request.form.get("name").capitilize()
+    user_id = get_user_id_by_name(name)
+
+    if not user_id:
+        return jsonify({"error": "User not found"}), 404
+
+    # Create a response and set the cookie
+    response = jsonify({"user_id": user_id})
+    response.set_cookie("user_id", str(user_id), max_age=36000, httponly=True)  # Cookie expires in 1 hour
+    return response
+
+@app.route('/api/upload_event_photo_file', methods=['POST'])
+def upload_photo():
+    event_id = request.form.get("event_id")
+    image_file = request.files.get("image_file")
+    event = get_event_by_id(event_id)
+
+    if not image_file or not event_id:
+        return jsonify({"error": "Invalid data"}), 400
+
+    try:
+
+        # Save the file
+        file_path = os.path.join(event["folder_path"], f"photo_{len(os.listdir(event['folder_path'])) + 1}.png")
+        image_file.save(file_path)
+
+        return jsonify({"message": "Photo uploaded successfully", "file_path": file_path}), 200
+    except Exception as e:
+        print(f"Error uploading photo: {e}")
+        return jsonify({"error": "Failed to upload photo"}), 500
+
+@app.route('/api/upload_event_photo_b64', methods=['POST'])
+def upload_event_photo():
+    event_id = request.form.get("event_id")
+    event = get_event_by_id(event_id)
+    image_data = request.form.get("image_data")
+
+    if not event_id or not image_data:
+        return jsonify({"error": "Event ID and image data are required"}), 400
+
+    try:
+        # Decode the image
+        header, encoded = image_data.split(",", 1)
+        image = base64.b64decode(encoded)
+
+        # Create event-specific directory
+        os.makedirs(event["folder_path"], exist_ok=True)
+
+        # Save the image
+        file_path = os.path.join(event["folder_path"], f"photo_{len(os.listdir(event['folder_path'])) + 1}.png")
+        with open(file_path, "wb") as f:
+            f.write(image)
+
+        return jsonify({"message": "Photo uploaded successfully", "file_path": file_path}), 200
+    except Exception as e:
+        print(f"Error uploading photo: {e}")
+        return jsonify({"error": "Failed to upload photo"}), 500
+    
+
+
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    #app.run(host="0.0.0.0", port=5000, debug=True, ssl_context=("cert.pem", "key.pem"))
+    app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+
