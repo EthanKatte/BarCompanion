@@ -51,8 +51,16 @@
         <textarea name="description" class="textarea textarea-bordered"></textarea>
       </div>
 
-      <!-- Image -->
+      <!-- File Upload -->
       <div class="form-control">
+        <label class="label">
+          <span class="label-text">Upload Image</span>
+        </label>
+        <input type="file" name="photo" id="image-upload" class="file-input file-input-bordered" />
+      </div>
+
+      <!-- Camera Photo -->
+      <div class="form-control hidden" id="camera-section">
         <label class="label">
           <span class="label-text">Take a Photo</span>
         </label>
@@ -74,20 +82,23 @@
 </div>
 
 <script>
-const video = document.getElementById("video");
+  const video = document.getElementById("video");
   const canvas = document.getElementById("canvas");
   const captureButton = document.getElementById("capture-button");
   const photoData = document.getElementById("photo-data");
+  const cameraSection = document.getElementById("camera-section");
 
   // Access the user's camera
   navigator.mediaDevices
     .getUserMedia({ video: true })
     .then((stream) => {
       video.srcObject = stream;
+      cameraSection.classList.remove("hidden");
     })
     .catch((err) => {
       console.error("Camera access denied:", err);
       showAlert("Unable to access the camera. Please check your device permissions.");
+      cameraSection.classList.add("hidden");
     });
 
   // Capture the photo
@@ -104,16 +115,58 @@ const video = document.getElementById("video");
     showAlert("Photo captured! Submit the form to upload it.", "success");
   });
 
-
   document.getElementById("addBottleForm").addEventListener("submit", async function (e) {
     e.preventDefault();
 
     // Get form data
     const formData = new FormData(e.target);
     const jsonData = {};
-    formData.forEach((value, key) => (jsonData[key] = value));
 
-    // Send POST request
+    // Convert form data to JSON
+    formData.forEach((value, key) => {
+      jsonData[key] = value;
+    });
+
+    // Check if the bottle already exists
+    const brand = jsonData.brand;
+    const name = jsonData.name;
+
+    const existsResponse = await fetch(`/api/check_bottle?brand=${encodeURIComponent(brand)}&name=${encodeURIComponent(name)}`);
+    const existsResult = await existsResponse.json();
+
+    if (existsResult.exists) {
+      showAlert("This bottle already exists in the database.", "error");
+      return;
+    }
+
+    // Check for photo from file upload or camera
+    const fileInput = document.getElementById("image-upload");
+    const file = fileInput.files[0];
+
+    if (file) {
+      const reader = new FileReader();
+
+      reader.onload = async function (event) {
+        // Convert the file to Base64 and include it in the "photo" payload
+        jsonData.photo = event.target.result;
+
+        // Send POST request
+        await submitBottle(jsonData);
+      };
+
+      reader.readAsDataURL(file); // Read the file as a Base64-encoded string
+    } else if (photoData.value) {
+      // Use captured photo if available
+      jsonData.photo = photoData.value;
+
+      // Send POST request
+      await submitBottle(jsonData);
+    } else {
+      showAlert("Please upload an image or take a photo.", "error");
+    }
+  });
+
+  async function submitBottle(jsonData) {
     try {
       const response = await fetch("http://192.168.0.145:5000/api/add_bottle", {
         method: "POST",
@@ -126,8 +179,9 @@ const video = document.getElementById("video");
       const result = await response.json();
       if (response.ok) {
         showAlert("Bottle added successfully!", "success");
-        e.target.reset(); // Reset the form
+        document.getElementById("addBottleForm").reset(); // Reset the form
         document.getElementById("add-bottle-modal").checked = false; // Close the modal
+        location.reload();
       } else {
         showAlert(result.error || "Failed to add the bottle.", "error");
       }
@@ -135,5 +189,5 @@ const video = document.getElementById("video");
       showAlert("An error occurred while adding the bottle.", "error");
       console.error(error);
     }
-  });
+  }
 </script>

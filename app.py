@@ -20,7 +20,11 @@ from database.db_queries import (get_all_bottles,
                                 add_note_record,
                                 get_tasting_note_id,
                                 get_tasting_notes_by_bottle_id,
-                                get_tasting_notes_by_review
+                                get_tasting_notes_by_review,
+                                update_expert_notes,
+                                update_bottle_description,
+                                bottle_exists,
+                                user_exists
                                 )
 from flask_cors import CORS
 import base64
@@ -44,6 +48,7 @@ def inventory():
         bottles = get_all_bottles()
         tasting_notes = get_tasting_notes()
         users = list(get_all_users_with_reviews())
+        print(bottles)
         return render_template('inventory.html', bottles=bottles, tasting_notes=tasting_notes, users=users)
 
     filters = {
@@ -165,11 +170,13 @@ def api_add_bottle():
 
             print(f"Image saved to: {image_filepath}")
 
+        abv_data = data['abv'] if data['abv'].endswith("%") else data['abv'] + "%"
+
         # Add bottle to the database
         new_id = add_bottle(
             brand=data['brand'],
             name=data['name'],
-            abv=data['abv'],
+            abv=abv_data,
             spirit_type=data['spirit_type'],
             subtype=data.get('subtype'),
             description=data.get('description'),
@@ -234,7 +241,7 @@ def api_add_user():
 
             print(f"Image saved to: {image_filepath}")
 
-        # Add bottle to the database
+        # Add botusertle to the database
         new_id = add_user(
             name=data['name'],
             image_path=image_filename if image_filename else None  # Save the filename in DB
@@ -297,7 +304,7 @@ def api_add_review():
     try:
         # Extract data from the request
         name = data.get('name')
-        review = data.get('review')
+        review = data.get('review_text')
         notes = data.get('notes')
         score = int(data.get('score'))
         bottle_id = int(data.get('bottle_id'))
@@ -311,14 +318,17 @@ def api_add_review():
             return jsonify({"error": "Missing required fields"}), 400
 
         # Get user ID based on the name
-        user_id = get_user_id_by_name(name)
+        user_id = name
         if user_id is None:
+            print(name)
             return jsonify({"error": f"User with name '{name}' not found"}), 404
 
         # Add the review to the database
         review_id = add_review(user_id, bottle_id, review, score, event_id=event_id)
-        if notes:
+        if notes and review_id:
             add_notes_to_review(notes, review_id)
+        else:
+            return jsonify({"error": "Failed to add review"}), 500
 
         if review_id:
             return jsonify({"message": "Review added successfully", "review_id": review_id}), 201
@@ -383,8 +393,8 @@ def api_add_users_to_event():
         return jsonify({"error": str(e)}), 500
     
 @app.route('/api/user_exists', methods=["POST"])
-def user_exists():
-    name = request.form.get("name").capitilize()
+def api_user_exists():
+    name = str(request.form.get("name")).capitalize()
     user_id = get_user_id_by_name(name)
 
     if not user_id:
@@ -406,11 +416,14 @@ def upload_photo():
 
     try:
 
+        # Create event-specific directory
+        os.makedirs(event["folder_path"], exist_ok=True)
+
         # Save the file
         file_path = os.path.join(event["folder_path"], f"photo_{len(os.listdir(event['folder_path'])) + 1}.png")
         image_file.save(file_path)
 
-        return jsonify({"message": "Photo uploaded successfully", "file_path": file_path}), 200
+        return redirect(request.referrer)
     except Exception as e:
         print(f"Error uploading photo: {e}")
         return jsonify({"error": "Failed to upload photo"}), 500
@@ -420,7 +433,6 @@ def upload_event_photo():
     event_id = request.form.get("event_id")
     event = get_event_by_id(event_id)
     image_data = request.form.get("image_data")
-
     if not event_id or not image_data:
         return jsonify({"error": "Event ID and image data are required"}), 400
 
@@ -442,11 +454,81 @@ def upload_event_photo():
         print(f"Error uploading photo: {e}")
         return jsonify({"error": "Failed to upload photo"}), 500
     
+@app.route('/api/edit_expert_notes', methods=['POST'])
+def edit_expert_notes():
+    """
+    Endpoint to handle form submissions for editing expert notes and updating the bottle description.
+    """
+    try:
+        data = request.json
+        bottle_id = data.get('bottle_id')
+        description = data.get('description', '')
+        tasting_notes = data.get('notes', [])  # List of tasting note names
+        print(data)
+        stripped_notes = []
 
+        
+        if not bottle_id:
+            return jsonify({"error": "Bottle ID is required"}), 400
+
+        # Strip the prefixes from each note and add to the list
+        for note in tasting_notes:
+            # Strip the prefix from the note name (note_, subnote_, subsubnote_)
+            if note.startswith("note_"):
+                stripped_notes.append(note[len("note_"):])  # Remove "note_" prefix
+            elif note.startswith("subnote_"):
+                stripped_notes.append(note[len("subnote_"):])  # Remove "subnote_" prefix
+            elif note.startswith("subsubnote_"):
+                stripped_notes.append(note[len("subsubnote_"):])  # Remove "subsubnote_" prefix
+            else:
+                stripped_notes.append(note)
+
+        # Convert bottle_id to an integer
+        bottle_id = int(bottle_id)
+
+        # Map tasting note names to IDs
+        tasting_note_ids = []
+        for note_name in stripped_notes:
+            note_id = get_tasting_note_id(note_name)
+            if note_id is not None:
+                tasting_note_ids.append(note_id)
+
+        if tasting_note_ids:
+            print(tasting_note_ids)
+            # Update the expert notes
+            update_expert_notes(bottle_id, tasting_note_ids)
+
+        if description:
+            # Update the bottle description
+            update_bottle_description(bottle_id, description)
+
+        # Return a success response
+        return jsonify({"success": True, "message": "Expert notes and description updated successfully!"}), 200
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return jsonify({"error": "An internal error occurred", "details": str(e)}), 500
+
+#BOOLEAN DATA VALIDATION FUNCTIONS
+
+@app.route("/api/check_bottle", methods=["GET"])
+def check_bottle():
+    brand = request.args.get("brand").capitalize()
+    name = request.args.get("name").capitalize()
+
+    exists = bottle_exists(brand, name)
+    return jsonify({"exists": exists})
+
+@app.route("/api/check_user", methods=["GET"])
+def check_user():
+    name = request.args.get("name").capitalize()
+
+    exists = user_exists(name)
+    return jsonify({"exists": exists})
 
 
 if __name__ == '__main__':
-    #app.run(host="0.0.0.0", port=5000, debug=True, ssl_context=("cert.pem", "key.pem"))
+    #app.run(host="0.0.0.0", port=5000, debug=True, ssl_context=("./cert.pem", "./key.pem"))
     app.run(host="0.0.0.0", port=5000, debug=True)
 
 

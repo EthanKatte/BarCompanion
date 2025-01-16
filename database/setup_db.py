@@ -91,7 +91,7 @@ def setup_database():
         )
         ''')
     
-    #records of bottle notes
+    #records of expert bottle notes
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS expert_notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

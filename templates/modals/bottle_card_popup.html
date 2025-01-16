@@ -25,10 +25,25 @@
         disabled
       />
     </div>
-    
-    <!-- Tasting Notes Section -->
+
+    <!-- Expert Notes Section -->
+    {% if bottle.expert_tasting_notes %}
     <div class="my-4 p-4 border border-base-300 rounded-lg bg-base-100 shadow-md">
-      <h4 class="font-semibold text-lg text-center mb-4">Tasting Notes</h4>
+      <h4 class="font-semibold text-lg text-center mb-4">Expert Tasting Notes</h4>
+      <div class="flex flex-wrap gap-2 justify-center">
+        {% for expert_tasting_note in bottle.expert_tasting_notes %}
+          <div class="badge badge-lg tasting-note-{{ expert_tasting_note.replace(' ', '').lower() }}">
+            <span class="font-medium">{{ expert_tasting_note }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    
+    <!-- Community Notes Section -->
+     {% if bottle.tasting_notes %}
+    <div class="my-4 p-4 border border-base-300 rounded-lg bg-base-100 shadow-md">
+      <h4 class="font-semibold text-lg text-center mb-4">Community Tasting Notes</h4>
       <div class="flex flex-wrap gap-2 justify-center">
         {% for tasting_note in bottle.tasting_notes %}
           <div class="badge badge-lg tasting-note-{{ tasting_note[0].replace(' ', '').lower() }}">
@@ -38,6 +53,7 @@
         {% endfor %}
       </div>
     </div>
+    {% endif %}
 
     <!-- Review Dropdown -->
     <div class="collapse collapse-arrow mt-6 border border-base-300 rounded-box">

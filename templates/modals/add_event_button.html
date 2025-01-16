@@ -65,6 +65,7 @@ async function sendEventRequest(data) {
       showAlert("Event added successfully!", "success");
       document.getElementById("addEventForm").reset(); // Reset the form
       document.getElementById("add-event-modal").checked = false; // Close the modal
+      location.reload();
     } else {
       showAlert(result.error || "Failed to add the event.", "error");
     }

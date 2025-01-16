@@ -35,7 +35,9 @@
         <select id="filter-subtype" class="select select-bordered">
             <option value="">All Subtypes</option>
             {% for bottle in bottles %}
-            <option value="{{ bottle.subtype }}">{{ bottle.subtype }}</option>
+              {% if bottle.subtype != "" %}
+                <option value="{{ bottle.subtype }}">{{ bottle.subtype }}</option>
+              {% endif %}
             {% endfor %}
         </select>
         </div>
@@ -64,7 +66,7 @@
     </div>
   
     <!-- Apply Filters Button -->
-    <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+    <button class="btn btn-primary mt-4" onclick="applyFilters()">Apply Filters</button>
     <script>
         function applyFilters() {
           const brand = document.getElementById("filter-brand").value;

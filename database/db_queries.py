@@ -46,13 +46,14 @@ def get_all_bottles():
             reviews = cursor.fetchall()
 
             bottle_dict["tasting_notes"] = get_tasting_notes_by_bottle_id(bottle["id"])
+            bottle_dict["expert_tasting_notes"] = get_expert_tasting_notes_for_bottle(bottle["id"])
 
             # Add reviews to the bottle dictionary
             bottle_dict["reviews"] = [
                 {
                     "reviewer_name": review["reviewer_name"],
                     "score": review["score"],
-                    "notes": review["review_text"],
+                    "review_text": review["review_text"],
                     "review_date": review["review_date"],
                     "tasting_notes": get_tasting_notes_by_review(review["id"])
                 }
@@ -113,7 +114,6 @@ def get_bottles_from_query(query, params):
             bottle_list.append(bottle_dict)
 
         return bottle_list
-        return [dict(row) for row in bottles]
     
 def get_bottle_name_by_id(bottle_id):
     """
@@ -140,7 +140,7 @@ def add_bottle(brand, name, abv, spirit_type, subtype=None, description=None, im
         cursor.execute('''
             INSERT INTO bottles (brand, name, abv, spirit_type, subtype, description, image_path)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (brand, name, abv, spirit_type, subtype, description, image_path))
+        ''', (brand, name, abv, spirit_type.capitalize(), subtype, description, image_path))
         conn.commit()
     return cursor.lastrowid
 
@@ -228,12 +228,12 @@ def add_user(name, image_path):
     """
     with create_connection() as conn:
         cursor = conn.cursor()
-        name = name.capitilize()
+        name = name.capitalize()
         try:
             # Insert the user into the database
             cursor.execute(
                 "INSERT INTO users (name, image_path) VALUES (?, ?)",
-                (name, image_path)
+                (name.capitalize(), image_path)
             )
             conn.commit()
             # Return the ID of the newly inserted user
@@ -254,7 +254,7 @@ def get_user_id_by_name(name):
     """
     with create_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id FROM users WHERE name = ?", (name.capitilize(),))
+        cursor.execute("SELECT id FROM users WHERE name = ?", (name.capitalize(),))
         result = cursor.fetchone()
         if result:
             return result[0]  # Return the user ID
@@ -285,7 +285,7 @@ def add_review(user_id, bottle_id, notes, score, event_id=None):
         try:
             # Insert the review into the database
             cursor.execute(
-                "INSERT INTO reviews (user_id, bottle_id, notes, score, event_id) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO reviews (user_id, bottle_id, review_text, score, event_id) VALUES (?, ?, ?, ?, ?)",
                 (user_id, bottle_id, notes, score, event_id)
             )
             conn.commit()
@@ -557,8 +557,8 @@ def add_note_record(review_id, tasting_note_id):
             
             # Insert the new entry into the note_records table
             cursor.execute(
-                "INSERT INTO community_notes (review_id, tasting_note_id, sense) VALUES (?, ?, ?)",
-                (review_id, tasting_note_id, "nose")
+                "INSERT INTO community_notes (review_id, tasting_note_id) VALUES (?, ?)",
+                (review_id, tasting_note_id)
             )
             
             # Commit the changes
@@ -622,6 +622,136 @@ def get_tasting_notes_by_review(review_id):
         result = cursor.fetchall()
 
     return [row[0] for row in result]
+
+#expert note functions
+
+def update_expert_notes(bottle_id, tasting_note_ids):
+    """
+    Updates the expert notes for a given bottle ID by removing existing notes
+    and inserting new ones.
+
+    :param bottle_id: The ID of the bottle to update notes for.
+    :param tasting_note_ids: A list of tasting note IDs to associate with the bottle.
+    """
+    try:
+        # Connect to the SQLite database
+        with create_connection() as conn:
+            cursor = conn.cursor()
+
+            # Begin a transaction
+            conn.execute("BEGIN TRANSACTION;")
+
+            # Delete all existing notes for the given bottle ID
+            cursor.execute('''
+                DELETE FROM expert_notes
+                WHERE bottle_id = ?
+            ''', (bottle_id,))
+
+            # Insert the new tasting notes for the bottle
+            cursor.executemany('''
+                INSERT INTO expert_notes (bottle_id, tasting_note_id)
+                VALUES (?, ?)
+            ''', [(bottle_id, note_id) for note_id in tasting_note_ids])
+
+
+    except sqlite3.Error as e:
+        # Rollback in case of an error
+        conn.rollback()
+        print(f"An error occurred: {e}")
+    finally:
+        # Close the connection
+        conn.close()
+
+def update_bottle_description(bottle_id, description):
+    """
+    Updates the description of a bottle in the database.
+
+    :param bottle_id: The ID of the bottle to update.
+    :param description: The new description for the bottle.
+    """
+    try:
+        # Connect to the SQLite database
+        with create_connection() as conn:
+            cursor = conn.cursor()
+
+            # Update the bottle description
+            cursor.execute('''
+                UPDATE bottles
+                SET description = ?
+                WHERE id = ?
+            ''', (description, bottle_id))
+
+            print(f"Description for bottle_id {bottle_id} updated successfully.")
+
+    except sqlite3.Error as e:
+        # Handle errors
+        print(f"An error occurred: {e}")
+
+def bottle_exists(brand, name):
+    """
+    Check if a brand-name pair exists in the bottles table.
+
+    :param brand: The brand of the bottle to check.
+    :param name: The name of the bottle to check.
+    :return: True if the brand-name pair exists, otherwise False.
+    """
+    try:
+        with create_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT 1 FROM bottles WHERE brand = ? AND name = ? LIMIT 1", (brand, name)
+            )
+            return cursor.fetchone() is not None
+    except Exception as e:
+        print(f"An error occurred while checking the bottle: {e}")
+        return False
+    
+def user_exists(name):
+    """
+    Check if a name exists in the users table.
+
+    :param name: The name of the user to check.
+    :param connection: SQLite connection object.
+    :return: True if the user exists, otherwise False.
+    """
+    try:
+        with create_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT 1 FROM users WHERE name = ? LIMIT 1", (name,)
+            )
+            return cursor.fetchone() is not None
+    except Exception as e:
+        print(f"An error occurred while checking the user: {e}")
+        return False
+    
+def get_expert_tasting_notes_for_bottle(bottle_id):
+    """
+    Given a bottle_id, returns a list of tasting notes (as names) associated with it.
+
+    Args:
+        bottle_id (int): The ID of the bottle.
+
+    Returns:
+        list: A list of tasting note names.
+    """
+    tasting_notes = []
+    query = '''
+        SELECT tn.name
+        FROM expert_notes en
+        JOIN tasting_notes tn ON en.tasting_note_id = tn.id
+        WHERE en.bottle_id = ?
+    '''
+
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(query, (bottle_id,))
+        rows = cursor.fetchall()
+        
+        tasting_notes = [row[0] for row in rows]
+
+    return tasting_notes
+
 
 #--------------------------------ADMIN FUNCTIONS--------------------------------------------------------------------------
 
@@ -694,11 +824,79 @@ def view_database():
             cursor.execute(f"PRAGMA table_info({table[0]});")
             print(cursor.fetchall())
 
+import os
+import pandas as pd
+from datetime import datetime
+
+def backup_database():
+    """
+    Backs up all tables in the bar_companion.db database to separate CSV files
+    in a directory named ./database_backup/{today's date}.
+    """
+    # Database and backup directory
+    database_path = "./database/bar_companion.db"
+    backup_dir = f"./database_backup/{datetime.now().strftime('%Y-%m-%d')}"
+
+    # Create the backup directory if it doesn't exist
+    os.makedirs(backup_dir, exist_ok=True)
+
+    # Connect to the database
+    with sqlite3.connect(database_path) as conn:
+        cursor = conn.cursor()
+
+        # Get a list of all tables in the database
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [row[0] for row in cursor.fetchall()]
+
+        # Export each table to a CSV file
+        for table in tables:
+            # Query all data from the table
+            df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
+
+            # Save to CSV in the backup directory
+            csv_path = os.path.join(backup_dir, f"{table}.csv")
+            df.to_csv(csv_path, index=False)
+
+    print(f"Database backup completed. Files saved in: {backup_dir}")
+
+def load_csvs(folder_path):
+    """
+    Loads all CSV files from a given folder into the bar_companion.db database.
+    Each CSV file should be named after the table it belongs to.
+
+    Args:
+        folder_path (str): Path to the folder containing the CSV files.
+    """
+    database_path = "./database/bar_companion.db"
+
+    # Connect to the database
+    with sqlite3.connect(database_path) as conn:
+        cursor = conn.cursor()
+
+        # Iterate through all CSV files in the folder
+        for file_name in os.listdir(folder_path):
+            if file_name.endswith(".csv"):
+                table_name = os.path.splitext(file_name)[0]
+                file_path = os.path.join(folder_path, file_name)
+
+                # Read the CSV into a DataFrame
+                df = pd.read_csv(file_path)
+
+                # Load DataFrame into the database (replace existing table)
+                df.to_sql(table_name, conn, if_exists="replace", index=False)
+
+                print(f"Loaded {file_name} into table {table_name}.")
+
+    print("All CSV files have been loaded into the database.")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "refresh":
         refresh_database()
     elif len(sys.argv) > 1 and sys.argv[1] == "view":
         view_database()
+    elif len(sys.argv) > 1 and sys.argv[1] == "backup":
+        backup_database()
+    elif len(sys.argv) > 2 and sys.argv[1] == "load":
+        load_csvs(sys.argv[2])
     else:
-        print("Usage: python db_queries.py refresh")
+        print("INCORRECT USAGE OF THE ADMIN COMMANDS")
