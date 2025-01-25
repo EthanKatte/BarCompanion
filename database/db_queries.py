@@ -889,41 +889,6 @@ def backup_database():
 
     print(f"Database backup completed. Files saved in: {backup_dir}")
 
-def reset_autoincrement(database_path):
-    """
-    Resets the AUTOINCREMENT sequence for all tables in the database
-    to ensure new rows continue from the maximum existing ID.
-    """
-    with sqlite3.connect(database_path) as conn:
-        cursor = conn.cursor()
-
-        # Get a list of all tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = [row[0] for row in cursor.fetchall()]
-
-        for table in tables:
-            # Skip sqlite_sequence or internal SQLite tables
-            if table == "sqlite_sequence":
-                continue
-
-            # Check if the table has an 'id' column
-            cursor.execute(f"PRAGMA table_info({table});")
-            columns = [col[1] for col in cursor.fetchall()]
-            if 'id' in columns:
-                # Get the maximum existing ID in the table
-                cursor.execute(f"SELECT MAX(id) FROM {table};")
-                max_id = cursor.fetchone()[0]
-                
-                # If the table has data, update the sqlite_sequence
-                if max_id:
-                    cursor.execute(f"UPDATE sqlite_sequence SET seq = {max_id} WHERE name = '{table}';")
-                else:
-                    cursor.execute(f"UPDATE sqlite_sequence SET seq = 0 WHERE name = '{table}';")
-
-
-        
-        print("Auto-increment sequences updated.")
-
 def load_csvs(folder_path):
     """
     Recreates the database schema and loads all CSV files from a given folder
@@ -972,10 +937,9 @@ if __name__ == "__main__":
         backup_database()
     elif len(sys.argv) > 2 and sys.argv[1] == "load":
         load_csvs(sys.argv[2])
-        reset_autoincrement('./database/bar_companion.db')
-        add_bottle("test", "test", "test", "test")
-        nones = [x for x in get_all_bottles() if not x["id"]]
+        #add_bottle("test", "test", "test", "test")
+        #nones = [x for x in get_all_bottles() if not x["id"]]
         #print(get_all_bottles())
-        print(nones)
+        #print(nones)
     else:
         print("INCORRECT USAGE OF THE ADMIN COMMANDS")

@@ -12,20 +12,6 @@
       <h2 class="text-xl font-bold mb-2">Event QR Code</h2>
       <div id="qrcode" class="border p-4"></div>
     </div>
-
-    <!-- Camera Preview -->
-    <div>
-      <h2 class="text-xl font-bold mb-2">Take Event Photos</h2>
-      <div id="camera-preview" class="mb-4">
-        <video id="video" autoplay class="w-64 h-48 border border-gray-500"></video>
-        <canvas id="canvas" class="hidden"></canvas>
-      </div>
-      <form id="photoForm" method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="event_id" value="{{ event.id }}" />
-        <input type="hidden" name="image_data" id="photo-data" />
-        <button type="button" id="capture-button" class="btn btn-primary">Take Photo</button>
-      </form>
-    </div>
   </div>
 
   <div class="container mx-auto py-8">
