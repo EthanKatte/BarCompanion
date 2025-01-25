@@ -752,6 +752,36 @@ def get_expert_tasting_notes_for_bottle(bottle_id):
 
     return tasting_notes
 
+def get_event_participants(event_id):
+    """
+    Fetches all participants for a given event ID from the database.
+
+    Args:
+        event_id (int): The ID of the event.
+
+    Returns:
+        list: A list of dictionaries, where each dictionary represents a participant with their details.
+    """
+    query = """
+    SELECT users.id, users.name, users.image_path
+    FROM event_participants
+    INNER JOIN users ON event_participants.user_id = users.id
+    WHERE event_participants.event_id = ?
+    """
+
+    # Use create_connection() to connect to the database
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(query, (event_id,))
+        rows = cursor.fetchall()
+
+    # Map results to a list of dictionaries for better readability
+    participants = [
+        {"id": row[0], "name": row[1], "image_path": row[2]} for row in rows
+    ]
+
+    return participants
+
 
 #--------------------------------ADMIN FUNCTIONS--------------------------------------------------------------------------
 
@@ -859,21 +889,59 @@ def backup_database():
 
     print(f"Database backup completed. Files saved in: {backup_dir}")
 
+def reset_autoincrement(database_path):
+    """
+    Resets the AUTOINCREMENT sequence for all tables in the database
+    to ensure new rows continue from the maximum existing ID.
+    """
+    with sqlite3.connect(database_path) as conn:
+        cursor = conn.cursor()
+
+        # Get a list of all tables
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        tables = [row[0] for row in cursor.fetchall()]
+
+        for table in tables:
+            # Skip sqlite_sequence or internal SQLite tables
+            if table == "sqlite_sequence":
+                continue
+
+            # Check if the table has an 'id' column
+            cursor.execute(f"PRAGMA table_info({table});")
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'id' in columns:
+                # Get the maximum existing ID in the table
+                cursor.execute(f"SELECT MAX(id) FROM {table};")
+                max_id = cursor.fetchone()[0]
+                
+                # If the table has data, update the sqlite_sequence
+                if max_id:
+                    cursor.execute(f"UPDATE sqlite_sequence SET seq = {max_id} WHERE name = '{table}';")
+                else:
+                    cursor.execute(f"UPDATE sqlite_sequence SET seq = 0 WHERE name = '{table}';")
+
+
+        
+        print("Auto-increment sequences updated.")
+
 def load_csvs(folder_path):
     """
-    Loads all CSV files from a given folder into the bar_companion.db database.
-    Each CSV file should be named after the table it belongs to.
+    Recreates the database schema and loads all CSV files from a given folder
+    into the bar_companion.db database. Each CSV file should be named
+    after the table it belongs to.
 
     Args:
         folder_path (str): Path to the folder containing the CSV files.
     """
     database_path = "./database/bar_companion.db"
 
-    # Connect to the database
-    with sqlite3.connect(database_path) as conn:
-        cursor = conn.cursor()
+    # Step 1: Recreate the database schema
+    delete_database()
+    setup_database()
+    print("Database schema recreated.")
 
-        # Iterate through all CSV files in the folder
+    # Step 2: Load CSV data into the database
+    with sqlite3.connect(database_path) as conn:
         for file_name in os.listdir(folder_path):
             if file_name.endswith(".csv"):
                 table_name = os.path.splitext(file_name)[0]
@@ -882,12 +950,18 @@ def load_csvs(folder_path):
                 # Read the CSV into a DataFrame
                 df = pd.read_csv(file_path)
 
-                # Load DataFrame into the database (replace existing table)
-                df.to_sql(table_name, conn, if_exists="replace", index=False)
+                # Ensure the 'id' column is properly handled
+                if 'id' in df.columns:
+                    df['id'] = pd.to_numeric(df['id'], errors='coerce').fillna(0).astype(int)
+
+                # Load DataFrame into the database
+                df.to_sql(table_name, conn, if_exists="append", index=False)
 
                 print(f"Loaded {file_name} into table {table_name}.")
-
+    
     print("All CSV files have been loaded into the database.")
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "refresh":
@@ -898,5 +972,10 @@ if __name__ == "__main__":
         backup_database()
     elif len(sys.argv) > 2 and sys.argv[1] == "load":
         load_csvs(sys.argv[2])
+        reset_autoincrement('./database/bar_companion.db')
+        add_bottle("test", "test", "test", "test")
+        nones = [x for x in get_all_bottles() if not x["id"]]
+        #print(get_all_bottles())
+        print(nones)
     else:
         print("INCORRECT USAGE OF THE ADMIN COMMANDS")

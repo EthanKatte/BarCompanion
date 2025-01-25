@@ -24,7 +24,8 @@ from database.db_queries import (get_all_bottles,
                                 update_expert_notes,
                                 update_bottle_description,
                                 bottle_exists,
-                                user_exists
+                                user_exists,
+                                get_event_participants
                                 )
 from flask_cors import CORS
 import base64
@@ -123,7 +124,8 @@ def event_client():
     if user_id:
         event = get_event_by_id(id)
         user = [u for u in list(get_all_users_with_reviews()) if u["id"] == int(user_id)][0]
-
+        if user_id not in [participant["id"] for participant in get_event_participants(id)]:
+            add_user_to_event([user_id], id)
         return render_template("event_client.html", event=event, user=user, tasting_notes=tasting_notes)
     else:
         return jsonify({"error": "User ID cookie not found"}), 404
@@ -318,7 +320,13 @@ def api_add_review():
             return jsonify({"error": "Missing required fields"}), 400
 
         # Get user ID based on the name
-        user_id = name
+        user_id = None
+
+        try:
+            user_id = int(name)
+        except:
+            user_id = get_user_id_by_name(name)
+
         if user_id is None:
             print(name)
             return jsonify({"error": f"User with name '{name}' not found"}), 404

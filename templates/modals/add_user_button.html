@@ -8,7 +8,7 @@
         <label class="label">
           <span class="label-text">Name</span>
         </label>
-        <input type="text" name="name" class="input input-bordered" required />
+        <input type="text" name="name" id="user-name" class="input input-bordered" required />
       </div>
 
       <!-- File Upload -->
@@ -16,20 +16,7 @@
         <label class="label">
           <span class="label-text">Upload Image</span>
         </label>
-        <input type="file" name="photo" id="image-upload" class="file-input file-input-bordered" />
-      </div>
-
-      <!-- Camera Photo -->
-      <div class="form-control hidden" id="camera-section">
-        <label class="label">
-          <span class="label-text">Take a Photo</span>
-        </label>
-        <div id="camera-container" class="mb-4">
-          <video id="video" autoplay class="max-w-xs"></video>
-          <canvas id="canvas" class="hidden"></canvas>
-        </div>
-        <button type="button" class="btn btn-primary" id="capture-button">Capture Photo</button>
-        <input type="hidden" name="photo" id="photo-data" />
+        <input type="file" name="photo" id="image-upload" class="file-input file-input-bordered" accept="image/*" required />
       </div>
 
       <!-- Submit Button -->
@@ -42,105 +29,61 @@
 </div>
 
 <script>
-  const video = document.getElementById("video");
-  const canvas = document.getElementById("canvas");
-  const captureButton = document.getElementById("capture-button");
-  const photoData = document.getElementById("photo-data");
-  const cameraSection = document.getElementById("camera-section");
-
-  // Access the user's camera
-  navigator.mediaDevices
-    .getUserMedia({ video: true })
-    .then((stream) => {
-      video.srcObject = stream;
-      cameraSection.classList.remove("hidden");
-    })
-    .catch((err) => {
-      console.error("Camera access denied:", err);
-      showAlert("Unable to access the camera. Please check your device permissions.", "error");
-      cameraSection.classList.add("hidden");
-      console.log("here");
-    });
-
-  // Capture the photo
-  captureButton.addEventListener("click", () => {
-    const context = canvas.getContext("2d");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Convert the image to a data URL and store it in the hidden input
-    const imageData = canvas.toDataURL("image/png");
-    photoData.value = imageData;
-
-    showAlert("Photo captured! Submit the form to upload it.", "success");
-  });
-
   document.getElementById("addUserForm").addEventListener("submit", async function (e) {
-    e.preventDefault();
+    e.preventDefault(); // Prevent the default form submission
 
     // Get form data
-    const formData = new FormData(e.target);
-    const jsonData = {};
-
-    // Convert form data to JSON
-    formData.forEach((value, key) => {
-        jsonData[key] = value;
-    });
-    console.log(jsonData)
-    // Check for photo from file upload or camera
+    const nameInput = document.getElementById("user-name");
     const fileInput = document.getElementById("image-upload");
     const file = fileInput.files[0];
-    console.log(file);
 
-    if (!file && !photoData.value) {
-        showAlert("Please upload an image or take a photo.", "error");
-        return; // Prevent form submission
+    if (!nameInput.value || !file) {
+      alert("Please provide a name and upload an image.");
+      return;
     }
 
-    if (file) {
-        const reader = new FileReader();
+    // Convert the image file to Base64
+    const base64Image = await fileToBase64(file);
 
-        reader.onload = async function (event) {
-            // Convert the file to Base64 and include it in the "photo" payload
-            jsonData.photo = event.target.result;
+    // Prepare the JSON payload
+    const payload = {
+      name: nameInput.value,
+      photo: base64Image,
+    };
 
-            // Send POST request
-            await submitUser(jsonData);
-        };
-
-        reader.readAsDataURL(file); // Read the file as a Base64-encoded string
-    } else if (photoData.value) {
-        // Use captured photo if available
-        jsonData.photo = photoData.value;
-
-        // Send POST request
-        await submitUser(jsonData);
-    }
-});
-
-  async function submitUser(jsonData) {
     try {
+      // Send the POST request
       const response = await fetch("http://192.168.0.145:5000/api/add_user", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(jsonData),
+        body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
       if (response.ok) {
-        showAlert("User added successfully!", "success");
+        const result = await response.json();
+        alert("User added successfully!");
+        console.log("Server Response:", result);
         document.getElementById("addUserForm").reset(); // Reset the form
         document.getElementById("add-user-modal").checked = false; // Close the modal
-        location.reload();
       } else {
-        showAlert(result.error || "Failed to add the user.", "error");
+        const error = await response.json();
+        alert("Failed to add user: " + (error.error || "Unknown error"));
       }
     } catch (error) {
-      showAlert("An error occurred while adding the user.", "error");
-      console.error(error);
+      console.error("Error submitting form:", error);
+      alert("An error occurred while submitting the form.");
     }
+  });
+
+  // Helper function to convert a file to Base64
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file); // Read the file as a Base64 string
+    });
   }
 </script>

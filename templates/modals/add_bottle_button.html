@@ -24,7 +24,7 @@
         <label class="label">
           <span class="label-text">ABV</span>
         </label>
-        <input type="text" name="abv" class="input input-bordered" placeholder="e.g., 40%" required />
+        <input type="number" name="abv" class="input input-bordered" placeholder="e.g., 40%" required />
       </div>
 
       <!-- Type -->
@@ -56,20 +56,7 @@
         <label class="label">
           <span class="label-text">Upload Image</span>
         </label>
-        <input type="file" name="photo" id="image-upload" class="file-input file-input-bordered" />
-      </div>
-
-      <!-- Camera Photo -->
-      <div class="form-control hidden" id="camera-section">
-        <label class="label">
-          <span class="label-text">Take a Photo</span>
-        </label>
-        <div id="camera-container" class="mb-4">
-          <video id="video" autoplay class="max-w-xs"></video>
-          <canvas id="canvas" class="hidden"></canvas>
-        </div>
-        <button type="button" class="btn btn-primary" id="capture-button">Capture Photo</button>
-        <input type="hidden" name="photo" id="photo-data" />
+        <input type="file" name="photo" id="image-upload" class="file-input file-input-bordered" accept="image/*" required />
       </div>
 
       <!-- Submit Button -->
@@ -82,92 +69,42 @@
 </div>
 
 <script>
-  const video = document.getElementById("video");
-  const canvas = document.getElementById("canvas");
-  const captureButton = document.getElementById("capture-button");
-  const photoData = document.getElementById("photo-data");
-  const cameraSection = document.getElementById("camera-section");
-
-  // Access the user's camera
-  navigator.mediaDevices
-    .getUserMedia({ video: true })
-    .then((stream) => {
-      video.srcObject = stream;
-      cameraSection.classList.remove("hidden");
-    })
-    .catch((err) => {
-      console.error("Camera access denied:", err);
-      showAlert("Unable to access the camera. Please check your device permissions.");
-      cameraSection.classList.add("hidden");
-    });
-
-  // Capture the photo
-  captureButton.addEventListener("click", () => {
-    const context = canvas.getContext("2d");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Convert the image to a data URL and store it in the hidden input
-    const imageData = canvas.toDataURL("image/png");
-    photoData.value = imageData;
-
-    showAlert("Photo captured! Submit the form to upload it.", "success");
-  });
-
   document.getElementById("addBottleForm").addEventListener("submit", async function (e) {
-    e.preventDefault();
+    e.preventDefault(); // Prevent default form submission
 
     // Get form data
     const formData = new FormData(e.target);
     const jsonData = {};
 
-    // Convert form data to JSON
     formData.forEach((value, key) => {
       jsonData[key] = value;
     });
 
-    // Check if the bottle already exists
-    const brand = jsonData.brand;
-    const name = jsonData.name;
-
-    const existsResponse = await fetch(`/api/check_bottle?brand=${encodeURIComponent(brand)}&name=${encodeURIComponent(name)}`);
-    const existsResult = await existsResponse.json();
-
-    if (existsResult.exists) {
-      showAlert("This bottle already exists in the database.", "error");
-      return;
-    }
-
-    // Check for photo from file upload or camera
     const fileInput = document.getElementById("image-upload");
     const file = fileInput.files[0];
 
-    if (file) {
-      const reader = new FileReader();
-
-      reader.onload = async function (event) {
-        // Convert the file to Base64 and include it in the "photo" payload
-        jsonData.photo = event.target.result;
-
-        // Send POST request
-        await submitBottle(jsonData);
-      };
-
-      reader.readAsDataURL(file); // Read the file as a Base64-encoded string
-    } else if (photoData.value) {
-      // Use captured photo if available
-      jsonData.photo = photoData.value;
-
-      // Send POST request
-      await submitBottle(jsonData);
-    } else {
-      showAlert("Please upload an image or take a photo.", "error");
+    if (!file) {
+      showAlert("Please upload an image.", "error");
+      return;
     }
-  });
 
-  async function submitBottle(jsonData) {
+    // Convert the image file to Base64
+    const base64Image = await fileToBase64(file);
+    jsonData.photo = base64Image;
+
     try {
+      // Send POST request to check if bottle exists
+      const existsResponse = await fetch(
+        `/api/check_bottle?brand=${encodeURIComponent(jsonData.brand)}&name=${encodeURIComponent(jsonData.name)}`
+      );
+      const existsResult = await existsResponse.json();
+
+      if (existsResult.exists) {
+        showAlert("This bottle already exists in the database.", "error");
+        return;
+      }
+
+      // Send POST request to add the bottle
       const response = await fetch("http://192.168.0.145:5000/api/add_bottle", {
         method: "POST",
         headers: {
@@ -176,18 +113,28 @@
         body: JSON.stringify(jsonData),
       });
 
-      const result = await response.json();
       if (response.ok) {
         showAlert("Bottle added successfully!", "success");
-        document.getElementById("addBottleForm").reset(); // Reset the form
-        document.getElementById("add-bottle-modal").checked = false; // Close the modal
-        location.reload();
+        setTimeout(() => {
+          location.reload(); // Refresh the page after success
+        }, 1000);
       } else {
-        showAlert(result.error || "Failed to add the bottle.", "error");
+        const error = await response.json();
+        showAlert(error.error || "Failed to add the bottle.", "error");
       }
     } catch (error) {
+      console.error("Error submitting form:", error);
       showAlert("An error occurred while adding the bottle.", "error");
-      console.error(error);
     }
+  });
+
+  // Helper function to convert file to Base64
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
   }
 </script>
