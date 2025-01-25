@@ -1,0 +1,40 @@
+<input type="checkbox" id="bottle-modal-{{ bottle.id }}" class="modal-toggle" />
+<div class="modal">
+  <div class="modal-box relative">
+    <!-- Modal Content -->
+    <h3 class="font-bold text-lg">{{ bottle.brand }} - {{ bottle.name }}</h3>
+    <p class="py-4">
+      ABV: {{ bottle.abv }} <br />
+      {{ bottle.description }}
+    </p>
+    <figure class="my-4">
+      <img
+        src="/static/bottles/{{ bottle.image_path }}"
+        alt="{{ bottle.name }}"
+        class="w-[250px] h-[250px] object-contain mx-auto"
+      />
+    </figure>
+    <!-- Empty Status Checkbox -->
+    <div class="flex items-center mt-4">
+      <label for="available-{{ bottle.id }}" class="mr-2">Is Available:</label>
+      <input
+        type="checkbox"
+        id="available-{{ bottle.id }}"
+        class="checkbox"
+        {% if bottle.available == 1 %}checked{% endif %}
+        disabled
+      />
+    </div>
+
+    {% for review in bottle.reviews %}
+      <div>
+            {% include "modals/bottle_review.html" %}
+      </div>
+    {% endfor %}
+
+    <!-- Close Button -->
+    <label for="bottle-modal-{{ bottle.id }}" class="btn btn-sm btn-circle absolute right-2 top-2">✕</label>
+  </div>
+  <!-- Overlay (click outside to close) -->
+  <label for="bottle-modal-{{ bottle.id }}" class="modal-backdrop"></label>
+</div>

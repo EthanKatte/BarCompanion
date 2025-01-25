@@ -441,6 +441,15 @@ def get_event_by_id(event_id):
                 WHERE event_drinks.event_id = ?
             """, (event_id,))
             bottles = [dict(row) for row in cursor.fetchall()]
+            for bottle in bottles:
+                cursor.execute("""
+                    SELECT reviews.*, users.name AS reviewer_name
+                    FROM reviews
+                    JOIN users ON reviews.user_id = users.id
+                    WHERE bottle_id = ? AND event_id = ?
+                """, (bottle["id"], event_id))
+
+                bottle["reviews"] = [dict(row) for row in cursor.fetchall()]
 
             # Return the event details along with participants and bottles
             return {
