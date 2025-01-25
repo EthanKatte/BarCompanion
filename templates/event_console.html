@@ -77,21 +77,20 @@
         {% include "modals/add_event_user_button.html" %}
     <div class="grid grid-cols-3 gap-6">
       {% for user in event.users %}
-      <div class="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
-        <!-- Bottle Image -->
-        <div class="p-4">
+      <script>console.log("users: {{ event.users}}");</script>
+      <label for="user-modal-{{ user.id }}" class="cursor-pointer bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+        <figure>
           <img
             src="/static/users/{{ user.image_path }}"
             alt="{{ user.name }}"
-            class="w-full h-48 object-contain rounded-md"
+            class="w-[250px] h-[250px] object-contain mx-auto bg-gray-100"
           />
+        </figure>
+        <div class="card-body">
+          <h2 class="card-title">{{ user.name }}</h2>
         </div>
-    
-        <!-- user Details -->
-        <div class="p-4 text-center">
-          <h3 class="font-bold text-lg mb-2">{{ user.name }}</h3>
-        </div>
-      </div>
+      </label>
+      {% include "modals/event_user_popup.html" %}
       {% endfor %}
     </div>
 </div>

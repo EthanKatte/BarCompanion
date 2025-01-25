@@ -99,6 +99,7 @@ def event():
         event=get_event_by_id(id)
         bottles = get_all_bottles()
         users = get_all_users_with_reviews()
+        print(event)
 
             # Fetch all image files in the directory
         try:
@@ -112,7 +113,7 @@ def event():
 
         if not event:
             return "An error occurred: unknown event provided."
-        return render_template("event_console.html", event=event, bottles=bottles, users=users, images=images)
+        return render_template("event_console.html", event=event, bottles=bottles, users=list(users), images=images)
     else:
         return "An error occurred: unknown URL version provided. Options are client/console.", 500
 
@@ -124,7 +125,9 @@ def event_client():
     if user_id:
         event = get_event_by_id(id)
         user = [u for u in list(get_all_users_with_reviews()) if u["id"] == int(user_id)][0]
-        if user_id not in [participant["id"] for participant in get_event_participants(id)]:
+        print([participant["id"] for participant in get_event_participants(id)])
+        print(user_id)
+        if int(user_id) not in [int(participant["id"]) for participant in get_event_participants(id)]:
             add_user_to_event([user_id], id)
         return render_template("event_client.html", event=event, user=user, tasting_notes=tasting_notes)
     else:

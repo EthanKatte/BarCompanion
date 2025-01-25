@@ -411,6 +411,27 @@ def get_event_by_id(event_id):
                 WHERE event_participants.event_id = ?
             """, (event_id,))
             participants = [dict(row) for row in cursor.fetchall()]
+            for participant in participants:
+                cursor.execute("""
+                    SELECT *
+                    FROM reviews
+                    WHERE user_id = ? AND event_id = ?
+                """, (participant["id"], event_id))
+
+                participant["reviews"] = [dict(row) for row in cursor.fetchall()]
+                for review in participant["reviews"]:
+                    review["tasting_notes"] = get_tasting_notes_by_review(review["id"])
+                #for review in participant["reviews"]:
+                #    print("review, ", review.keys())
+                #    print("bottle_id, ", type(review["bottle_id"]))
+                #    cursor.execute("""
+                #        SELECT *
+                #        FROM bottles
+                #        WHERE id = ?
+                #    """, (review["bottle_id"]))
+                #    review["bottle"] = cursor.fetchone()
+
+
 
             # Query to fetch bottles for the event
             cursor.execute("""
