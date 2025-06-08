@@ -146,37 +146,6 @@
         console.error("Camera access denied:", err);
         showAlert("Unable to access the camera. Please check your device permissions.", "error");
       });
-
-    // Capture photo
-    captureButton.addEventListener("click", () => {
-      const context = canvas.getContext("2d");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Convert the image to a Base64 string
-      const imageData = canvas.toDataURL("image/png");
-      photoData.value = imageData;
-
-      // Submit the photo to the server
-      const formData = new FormData(document.getElementById("photoForm"));
-      fetch("/api/upload_event_photo_b64", {
-        method: "POST",
-        body: formData,
-      })
-        .then((response) => response.json())
-        .then((result) => {
-          if (result.message) {
-            showAlert("Photo uploaded successfully!", "success");
-          } else {
-            showAlert(result.error || "Failed to upload photo.", "error");
-          }
-        })
-        .catch((error) => {
-          console.error("Error uploading photo:", error);
-          showAlert("An error occurred while uploading the photo.", "error");
-        });
-    });
   });
 </script>
 {% endblock %}

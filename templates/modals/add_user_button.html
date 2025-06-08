@@ -52,6 +52,7 @@
     };
 
     try {
+      showLoadingOverlay();
       // Send the POST request
       const response = await fetch("http://192.168.0.145:5000/api/add_user", {
         method: "POST",
@@ -63,18 +64,20 @@
 
       if (response.ok) {
         const result = await response.json();
-        alert("User added successfully!");
+        showAlert("User added successfully!");
         console.log("Server Response:", result);
         document.getElementById("addUserForm").reset(); // Reset the form
         document.getElementById("add-user-modal").checked = false; // Close the modal
+        location.reload();
       } else {
         const error = await response.json();
-        alert("Failed to add user: " + (error.error || "Unknown error"));
+        showAlert("Failed to add user: " + (error.error || "Unknown error"));
       }
     } catch (error) {
       console.error("Error submitting form:", error);
-      alert("An error occurred while submitting the form.");
+      showAlert("An error occurred while submitting the form.");
     }
+    hideLoadingOverlay();
   });
 
   // Helper function to convert a file to Base64

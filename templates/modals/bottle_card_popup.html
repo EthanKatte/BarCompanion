@@ -204,6 +204,7 @@
     console.log(jsonData);
     // Send POST request to add the review
     try {
+      showLoadingOverlay();
       const response = await fetch("/api/add_review", {
         method: "POST",
         headers: {
@@ -224,5 +225,6 @@
       showAlert("An error occurred while adding the review.", "error");
       console.error(error);
     }
+    hideLoadingOverlay();
   });
 </script>

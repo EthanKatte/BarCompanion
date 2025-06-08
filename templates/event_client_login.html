@@ -38,6 +38,9 @@
 
     {% include "modals/add_user_event_client.html" %}
 
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[9999]">
+      <div class="text-white text-3xl">Processing...</div>
+    </div>
   </div>
 
   <!-- JavaScript -->
@@ -48,6 +51,7 @@
       const name = document.getElementById("name").value;
 
       try {
+        showLoadingOverlay();
         const response = await fetch("/api/user_exists", {
           method: "POST",
           headers: {
@@ -73,10 +77,12 @@
             document.getElementById("add-user-modal").checked = true;
           }
           showAlert(errorData.error || "An error occurred.");
+          hideLoadingOverlay();
         }
       } catch (error) {
         console.error("Error:", error);
         showAlert("Unable to connect to the server.");
+        hideLoadingOverlay();
       }
     });
 
@@ -110,6 +116,14 @@
     setTimeout(() => {
       alert.remove();
     }, timeout);
+  }
+  
+  function showLoadingOverlay() {
+    document.getElementById("loading-overlay").classList.remove("hidden");
+  }
+
+  function hideLoadingOverlay() {
+    document.getElementById("loading-overlay").classList.add("hidden");
   }
   </script>
 </body>

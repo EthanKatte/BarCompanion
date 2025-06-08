@@ -66,7 +66,9 @@
             {% endfor %}
         </div>
     </div>
-
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[9999]">
+      <div class="text-white text-3xl">Processing...</div>
+    </div>
 </div>
 
 <script>
@@ -100,6 +102,13 @@
     setTimeout(() => {
       alert.remove();
     }, timeout);
+  }
+  function showLoadingOverlay() {
+    document.getElementById("loading-overlay").classList.remove("hidden");
+  }
+
+  function hideLoadingOverlay() {
+    document.getElementById("loading-overlay").classList.add("hidden");
   }
 </script>
 

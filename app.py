@@ -113,6 +113,8 @@ def event():
 
         if not event:
             return "An error occurred: unknown event provided."
+        print(bottles)
+        print(users)
         return render_template("event_console.html", event=event, bottles=bottles, users=list(users), images=images)
     else:
         return "An error occurred: unknown URL version provided. Options are client/console.", 500

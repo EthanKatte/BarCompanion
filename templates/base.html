@@ -270,8 +270,19 @@
     <!-- Page-specific content will go here -->
     {% endblock %}
   </div>
-</body>
+  <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-[9999]">
+    <div class="text-white text-3xl">Processing...</div>
+  </div>
+</body> 
 <script>
+  function showLoadingOverlay() {
+    document.getElementById("loading-overlay").classList.remove("hidden");
+  }
+
+  function hideLoadingOverlay() {
+    document.getElementById("loading-overlay").classList.add("hidden");
+  }
+
   function showAlert(message, type = "info", timeout = 3000) {
     // Create the alert element
     const alert = document.createElement("div");

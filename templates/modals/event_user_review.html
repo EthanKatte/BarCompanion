@@ -4,10 +4,11 @@
     <!-- Visible Content -->
     <div class="grid grid-cols-2 items-center space-x-4 collapse-title text-lg font-medium">
         <div class="grid grid-cols-2">
+        {% set bottle = bottles | selectattr("id", "equalto", review.bottle_id) | first %}
         <!-- Bottle Image -->
         <div class="w-16 h-16">
             <img
-            src="/static/bottles/{{ bottles[review.bottle_id].image_path }}"
+            src="/static/bottles/{{bottle.image_path}}"
             alt="{{ review.bottle_name }}"
             class="object-contain w-full h-full rounded-md"
             />
@@ -15,8 +16,9 @@
     
         <!-- Bottle Name -->
         <div>
-            <h3 class="font-bold text-lg">{{ bottles[review.bottle_id].brand }}</h3>
-            <h3 class="text-base">{{ bottles[review.bottle_id].name }}</h3>
+          <script>console.log("{{bottles}}"); console.log(console.log("{review}"))</script>
+            <h3 class="font-bold text-lg">{{bottle.brand}}</h3>
+            <h3 class="text-base">{{bottle.name}}</h3>
         </div>
         </div>
   

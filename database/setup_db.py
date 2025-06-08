@@ -141,7 +141,6 @@ def setup_database():
         ("grape", "fruit", 1),
         ("fig", "fruit", 1),
         ("apple", "fruit", 1),
-        
         ("Spice", None, 3),
         ("baking spice", "Spice", 2),
         ("Nutmeg", "baking spice", 1),
@@ -156,7 +155,7 @@ def setup_database():
         ("fennel", "Savory spice", 1),
         ("dill", "Savory spice", 1),
         ("black pepper", "Savory spice", 1),
-        
+
         ("Sweet", None, 3),
         ("vanillas", "Sweet", 2),
         ("vanilla", "vanillas", 1),

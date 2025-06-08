@@ -100,6 +100,7 @@
 
     try {
       // Send POST request to check if bottle exists
+      showLoadingOverlay();
       const existsResponse = await fetch(
         `/api/check_bottle?brand=${encodeURIComponent(jsonData.brand)}&name=${encodeURIComponent(jsonData.name)}`
       );
@@ -132,6 +133,7 @@
       console.error("Error submitting form:", error);
       showAlert("An error occurred while adding the bottle.", "error");
     }
+    hideLoadingOverlay();
   });
 
   // Helper function to convert file to Base64
