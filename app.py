@@ -46,10 +46,9 @@ def home():
 def inventory():
     # Example data to pass to the inventory page
     if len(request.args) == 0:
-        bottles = get_all_bottles()
+        bottles = get_all_bottles()[:30]
         tasting_notes = get_tasting_notes()
         users = list(get_all_users_with_reviews())
-        print(bottles)
         return render_template('inventory.html', bottles=bottles, tasting_notes=tasting_notes, users=users)
 
     filters = {
@@ -73,6 +72,24 @@ def inventory():
     tasting_notes = get_tasting_notes()
     users = get_all_users_with_reviews()
     return render_template('inventory.html', bottles=bottles, tasting_notes=tasting_notes, users=users)
+
+@app.route('/api/bottles')
+def api_bottles():
+    start = int(request.args.get('offset', 0))
+    limit = int(request.args.get('limit', 30))
+    end = min(start + limit, len(get_all_bottles()))
+    bottles = get_all_bottles()[start:end]
+    print(bottles[0])
+    return jsonify([
+        {
+            "id": b["id"],
+            "brand": b["brand"],
+            "name": b["name"],
+            "abv": b["abv"],
+            "image_path": b["image_path"],
+            "available": b["available"],
+        } for b in bottles
+    ])
 
 @app.route('/users', methods=["GET"])
 def users():

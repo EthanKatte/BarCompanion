@@ -60,6 +60,7 @@
   {% endfor %}
 
 </div>
+<div id="load-trigger" class="h-10"></div>
 <script>
   async function openRandomBottleModal() {
     try {
@@ -97,20 +98,76 @@
     });
   }
 
-    document.addEventListener("DOMContentLoaded", function () {
-    const images = document.querySelectorAll("img.lazy");
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const img = entry.target;
-          img.src = img.dataset.src;
-          img.classList.remove("lazy");
-          observer.unobserve(img);
-        }
-      });
+
+  let offset = 30;
+  const limit = 30;
+  let loading = false;
+
+  const trigger = document.getElementById('load-trigger');
+  const grid = document.getElementById('bottle-grid');
+
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting && !loading) {
+        loading = true;
+        fetch(`/api/bottles?offset=${offset}&limit=${limit}`)
+          .then(res => res.json())
+          .then(bottles => {
+            bottles.forEach(bottle => {
+              const card = document.createElement('div');
+              card.className = 'card w-full bg-base-100 shadow-lg';
+              card.dataset.available = bottle.available;
+
+              card.innerHTML = `
+                <label for="modal-${bottle.id}" class="cursor-pointer">
+                  <figure>
+                    <img
+                      data-src="/database_images/bottles/${bottle.image_path}"
+                      alt="${bottle.name}"
+                      class="lazy w-[250px] h-[250px] object-contain mx-auto bg-gray-100"
+                    />
+                  </figure>
+                  <div class="card-body">
+                    <h2 class="card-title">${bottle.brand}</h2>
+                    <p>${bottle.name}</p>
+                    <p>ABV: ${bottle.abv}</p>
+                  </div>
+                </label>
+              `;
+
+              grid.appendChild(card);
+            });
+
+            // Re-run lazy loading on new images
+            const lazyImages = document.querySelectorAll('img.lazy');
+            lazyImages.forEach(img => observerLazy.observe(img));
+
+            offset += bottles.length;
+            loading = false;
+
+            if (bottles.length < limit) {
+              observer.unobserve(trigger); // All bottles loaded
+            }
+          });
+      }
     });
-    images.forEach(img => observer.observe(img));
+  }, { rootMargin: "300px" });
+
+  observer.observe(trigger);
+
+  // Lazy loading observer
+  const observerLazy = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const img = entry.target;
+        img.src = img.dataset.src;
+        img.classList.remove('lazy');
+        observerLazy.unobserve(img);
+      }
+    });
   });
+
+  document.querySelectorAll('img.lazy').forEach(img => observerLazy.observe(img));
 </script>
 
 {% endblock %}
