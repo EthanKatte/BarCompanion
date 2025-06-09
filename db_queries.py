@@ -8,6 +8,9 @@ except:
 import sys
 from flask import jsonify
 import random
+import os
+import pandas as pd
+from datetime import datetime
 
 
 DB_PATH = "./database/bar_companion.db"
@@ -883,10 +886,6 @@ def view_database():
             print(f"Schema for {table[0]}:")
             cursor.execute(f"PRAGMA table_info({table[0]});")
             print(cursor.fetchall())
-
-import os
-import pandas as pd
-from datetime import datetime
 
 def backup_database():
     """

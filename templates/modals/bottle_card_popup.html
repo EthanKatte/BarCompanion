@@ -9,9 +9,9 @@
     </p>
     <figure class="my-4">
       <img
-        src="/database_images/bottles/{{ bottle.image_path }}"
+        data-src="/database_images/bottles/{{ bottle.image_path }}"
         alt="{{ bottle.name }}"
-        class="w-[250px] h-[250px] object-contain mx-auto"
+        class="lazy w-[250px] h-[250px] object-contain mx-auto"
       />
     </figure>
     <!-- Empty Status Checkbox -->
@@ -226,5 +226,20 @@
       console.error(error);
     }
     hideLoadingOverlay();
+  });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const images = document.querySelectorAll("img.lazy");
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          img.src = img.dataset.src;
+          img.classList.remove("lazy");
+          observer.unobserve(img);
+        }
+      });
+    });
+    images.forEach(img => observer.observe(img));
   });
 </script>

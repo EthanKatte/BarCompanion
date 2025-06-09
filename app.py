@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, redirect, send_from_directory
-from database.db_queries import (get_all_bottles, 
+from db_queries import (get_all_bottles, 
                                 add_bottle, 
                                 remove_bottle, 
                                 get_bottles_from_query, 
