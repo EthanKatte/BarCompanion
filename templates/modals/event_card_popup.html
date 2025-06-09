@@ -12,7 +12,7 @@
       document.addEventListener("DOMContentLoaded", generateQRCode);
   
       function generateQRCode() {
-        const url = `http://192.168.0.145:5000/event?id={{ event.id }}&version=client`;
+        const url = `/event?id={{ event.id }}&version=client`;
         const qrCodeContainer = document.getElementById("qrcode-{{event.id}}");
   
         // Clear any existing QR code
@@ -27,15 +27,15 @@
       }
     </script>
     <div class="grid grid-cols-2">
-      <div class="btn btn-primary mr-2" onclick="window.location.href='http://192.168.0.145:5000/event?id={{ event.id }}&version=console'">Event Console</div>
-      <div class="btn btn-primary mr-2" onclick="window.location.href='http://192.168.0.145:5000/event?id={{ event.id }}&version=client'">Event Client</div>
+      <div class="btn btn-primary mr-2" onclick="window.location.href='/event?id={{ event.id }}&version=console'">Event Console</div>
+      <div class="btn btn-primary mr-2" onclick="window.location.href='/event?id={{ event.id }}&version=client'">Event Client</div>
     </div>
     <h3 class="font-bold text-lg mt-4">Bottles</h3>
     {% for bottle in event.bottles %}
     <div class="grid grid-cols-[auto,1fr] items-center gap-4 mb-4 mt-4">
       <!-- Bottle Image -->
       <img
-        src="/static/bottles/{{ bottle.image_path }}"
+        src="/database_images/bottles/{{ bottle.image_path }}"
         alt="{{ bottle.brand }} - {{ bottle.name }}"
         class="w-32 h-32 object-contain rounded-md"
       />
@@ -52,7 +52,7 @@
     <div class="grid grid-cols-[auto,1fr] items-center gap-4 mb-4 mt-4">
       <!-- user Image -->
       <img
-        src="/static/users/{{ user.image_path }}"
+        src="/database_images/users/{{ user.image_path }}"
         alt="{{ user.brand }} - {{ user.name }}"
         class="w-32 h-32 object-contain rounded-md"
       />

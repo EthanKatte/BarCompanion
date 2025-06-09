@@ -67,7 +67,7 @@
           <!-- Bottle Image -->
           <div class="p-4">
             <img
-              src="/static/bottles/{{ bottle.image_path }}"
+              src="/database_images/bottles/{{ bottle.image_path }}"
               alt="{{ bottle.brand }} - {{ bottle.name }}"
               class="w-full h-48 object-contain rounded-md"
             />
@@ -100,7 +100,7 @@
       <label for="user-modal-{{ user.id }}" class="cursor-pointer bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
         <figure>
           <img
-            src="/static/users/{{ user.image_path }}"
+            src="/database_images/users/{{ user.image_path }}"
             alt="{{ user.name }}"
             class="w-[250px] h-[250px] object-contain mx-auto bg-gray-100"
           />
@@ -123,7 +123,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     // Generate QR Code
     const qrCodeContainer = document.getElementById("qrcode");
-    const url = `http://192.168.0.145:5000/event?id={{ event.id }}&version=client`;
+    const url = `/event?id={{ event.id }}&version=client`;
     new QRCode(qrCodeContainer, {
       text: url,
       width: 400,

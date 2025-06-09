@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect
+from flask import Flask, render_template, request, jsonify, redirect, send_from_directory
 from database.db_queries import (get_all_bottles, 
                                 add_bottle, 
                                 remove_bottle, 
@@ -157,7 +157,7 @@ def expert_notes():
 
 @app.route('/api/add_bottle',  methods=["POST"])
 def api_add_bottle():
-    UPLOAD_FOLDER = "./static/bottles"
+    UPLOAD_FOLDER = "./database_images/bottles"
     data = request.json  # Parse JSON data from the request body
 
     try:
@@ -227,7 +227,7 @@ def api_make_unavailable():
 
 @app.route('/api/add_user',  methods=["POST"])
 def api_add_user():
-    UPLOAD_FOLDER = "./static/users"
+    UPLOAD_FOLDER = "./database_images/users"
     data = request.json  # Parse JSON data from the request body
     print(data)
 
@@ -365,7 +365,7 @@ def api_add_event():
         data = request.json
         event_date = data.get("event_date")
         name = data.get("name")
-        folder_path = "./static/events/" + name + str(event_date)
+        folder_path = "./database_images/events/" + name + str(event_date)
         code = name + str(event_date)
 
         if not name or not event_date:
@@ -539,9 +539,11 @@ def check_user():
     exists = user_exists(name)
     return jsonify({"exists": exists})
 
+@app.route('/database_images/<path:filename>')
+def serve_uploaded_image(filename):
+    return send_from_directory('database_images', filename)
 
 if __name__ == '__main__':
-    #app.run(host="0.0.0.0", port=5000, debug=True, ssl_context=("./cert.pem", "./key.pem"))
     app.run(host="0.0.0.0", port=5000, debug=True)
 
 

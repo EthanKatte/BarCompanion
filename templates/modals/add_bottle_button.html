@@ -112,7 +112,7 @@
       }
 
       // Send POST request to add the bottle
-      const response = await fetch("http://192.168.0.145:5000/api/add_bottle", {
+      const response = await fetch("/api/add_bottle", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

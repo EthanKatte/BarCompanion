@@ -66,7 +66,7 @@
           // If user ID exists, alert success
           if (data.user_id) {
             showAlert(`Welcome, ${name}`);
-            window.location.href = "http://192.168.0.145:5000/event_client?id={{event.id}}"
+            window.location.href = "/event_client?id={{event.id}}"
           } else {
             console.log("howd i get here?")
           }
