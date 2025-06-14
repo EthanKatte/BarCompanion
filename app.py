@@ -46,7 +46,7 @@ def home():
 def inventory():
     # Example data to pass to the inventory page
     if len(request.args) == 0:
-        bottles = get_all_bottles()[:30]
+        bottles = get_all_bottles()
         tasting_notes = get_tasting_notes()
         users = list(get_all_users_with_reviews())
         return render_template('inventory.html', bottles=bottles, tasting_notes=tasting_notes, users=users)
@@ -73,13 +73,27 @@ def inventory():
     users = get_all_users_with_reviews()
     return render_template('inventory.html', bottles=bottles, tasting_notes=tasting_notes, users=users)
 
+@app.route("/modal/bottle", methods=["POST"])
+def bottle_modal():
+    data = request.get_json()
+    bottle_id = data.get("bottle_id")
+
+    query = "SELECT * FROM bottles WHERE id = ?"
+    bottles = get_bottles_from_query(query, (bottle_id,))
+    tasting_notes = get_tasting_notes()
+    users = list(get_all_users_with_reviews())
+    
+    if not bottles:
+        return "Bottle not found", 404
+    print(bottles[0])
+    return render_template("modals/bottle_card_popup.html", bottle=bottles[0], tasting_notes=tasting_notes, users=users)
+
 @app.route('/api/bottles')
 def api_bottles():
     start = int(request.args.get('offset', 0))
     limit = int(request.args.get('limit', 30))
     end = min(start + limit, len(get_all_bottles()))
     bottles = get_all_bottles()[start:end]
-    print(bottles[0])
     return jsonify([
         {
             "id": b["id"],

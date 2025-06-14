@@ -1,6 +1,4 @@
-<input type="checkbox" id="modal-{{ bottle.id }}" class="modal-toggle" />
-<div class="modal">
-  <div class="modal-box relative">
+<div>
     <!-- Modal Content -->
     <h3 class="font-bold text-lg">{{ bottle.brand }} - {{ bottle.name }}</h3>
     <p class="py-4">
@@ -9,9 +7,9 @@
     </p>
     <figure class="my-4">
       <img
-        data-src="/database_images/bottles/{{ bottle.image_path }}"
+        src="/database_images/bottles/{{ bottle.image_path }}"
         alt="{{ bottle.name }}"
-        class="lazy w-[250px] h-[250px] object-contain mx-auto"
+        class="delayed w-[250px] h-[250px] object-contain mx-auto"
       />
     </figure>
     <!-- Empty Status Checkbox -->
@@ -136,23 +134,25 @@
 
           <!-- Score -->
           <!-- Score with Stars -->
+           
           <div class="form-control">
             <label class="label">
               <span class="label-text">Score</span>
             </label>
             <div class="rating justify-between">
-              <input type="radio" name="score" value="1" class="mask mask-star-2 bg-yellow-500" required />
-              <input type="radio" name="score" value="2" class="mask mask-star-2 bg-yellow-500" />
-              <input type="radio" name="score" value="3" class="mask mask-star-2 bg-yellow-500" />
-              <input type="radio" name="score" value="4" class="mask mask-star-2 bg-yellow-500" />
-              <input type="radio" name="score" value="5" class="mask mask-star-2 bg-yellow-500" />
-              <input type="radio" name="score" value="6" class="mask mask-star-2 bg-yellow-500" />
-              <input type="radio" name="score" value="7" class="mask mask-star-2 bg-yellow-500" />
-              <input type="radio" name="score" value="8" class="mask mask-star-2 bg-yellow-500" />
-              <input type="radio" name="score" value="9" class="mask mask-star-2 bg-yellow-500" />
-              <input type="radio" name="score" value="10" class="mask mask-star-2 bg-yellow-500" />
+              <input type="radio" name="score" value="1" class="mask mask-star-2 bg-yellow-500 animate-none" required />
+              <input type="radio" name="score" value="2" class="mask mask-star-2 bg-yellow-500 animate-none" />
+              <input type="radio" name="score" value="3" class="mask mask-star-2 bg-yellow-500 animate-none" />
+              <input type="radio" name="score" value="4" class="mask mask-star-2 bg-yellow-500 animate-none" />
+              <input type="radio" name="score" value="5" class="mask mask-star-2 bg-yellow-500 animate-none" />
+              <input type="radio" name="score" value="6" class="mask mask-star-2 bg-yellow-500 animate-none" />
+              <input type="radio" name="score" value="7" class="mask mask-star-2 bg-yellow-500 animate-none" />
+              <input type="radio" name="score" value="8" class="mask mask-star-2 bg-yellow-500 animate-none" />
+              <input type="radio" name="score" value="9" class="mask mask-star-2 bg-yellow-500 animate-none" />
+              <input type="radio" name="score" value="10" class="mask mask-star-2 bg-yellow-500 animate-none" />
             </div>
           </div>
+          
           <!-- Submit Button -->
           <button
             type="submit"
@@ -177,69 +177,3 @@
   </div>
   <!-- Overlay (click outside to close) -->
   <label for="modal-{{ bottle.id }}" class="modal-backdrop"></label>
-</div>
-<script>
-  document.getElementById("addReviewForm-{{ bottle.id }}").addEventListener("submit", async function (e) {
-    e.preventDefault();
-
-    // Get form data
-    const formData = new FormData(e.target);
-    const jsonData = {};
-      // Collect all form data, including the selected notes (checkboxes)
-    formData.forEach((value, key) => {
-        // For checkbox keys, if the checkbox is checked, we push the selected note to the jsonData
-        if (key.startsWith('note_') || key.startsWith('subnote_') || key.startsWith('subsubnote_')) {
-        if (!jsonData.notes) {
-            jsonData.notes = [];
-        }
-        jsonData.notes.push(key);
-        } else {
-        jsonData[key] = value;
-        }
-    });
-
-
-    jsonData.bottle_id = {{ bottle.id }}; // Add bottle ID to the data
-
-    console.log(jsonData);
-    // Send POST request to add the review
-    try {
-      showLoadingOverlay();
-      const response = await fetch("/api/add_review", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(jsonData),
-      });
-
-      const result = await response.json();
-      if (response.ok) {
-        showAlert("Review added successfully!", "success");
-        e.target.reset(); // Reset the form
-        document.getElementById("modal-{{ bottle.id }}").checked = false; // Close the modal
-      } else {
-        showAlert(result.error || "Failed to add the review.", "error");
-      }
-    } catch (error) {
-      showAlert("An error occurred while adding the review.", "error");
-      console.error(error);
-    }
-    hideLoadingOverlay();
-  });
-
-  document.addEventListener("DOMContentLoaded", function () {
-    const images = document.querySelectorAll("img.lazy");
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const img = entry.target;
-          img.src = img.dataset.src;
-          img.classList.remove("lazy");
-          observer.unobserve(img);
-        }
-      });
-    });
-    images.forEach(img => observer.observe(img));
-  });
-</script>

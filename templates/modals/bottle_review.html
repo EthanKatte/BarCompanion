@@ -12,7 +12,7 @@
             <input
               type="radio"
               name="rating-{{ review.reviewer_name }}-{{ review.score }}-{{ review.review_date}}"
-              class="mask mask-star-2 bg-yellow-400 scale-50"
+              class="mask mask-star-2 bg-yellow-400 scale-50 animate-none"
               {% if j <= review.score %}checked{% endif %}
               disabled
             />

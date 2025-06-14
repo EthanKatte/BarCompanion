@@ -32,18 +32,18 @@
   </div>
 </div>
 
-<div id="bottle-grid" class="grid grid-cols-3 gap-6">
-
+<div id="bottle-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-6">
   {% for bottle in bottles %}
-
   <div class="card w-full bg-base-100 shadow-lg" data-available="{{ bottle.available }}">
-    <!-- Trigger Button -->
-    <label for="modal-{{ bottle.id }}" class="cursor-pointer">
+    <div
+      class="cursor-pointer bottle-card"
+      data-bottle-id="{{ bottle.id }}"
+    >
       <figure>
         <img
           data-src="/database_images/bottles/{{ bottle.image_path }}"
           alt="{{ bottle.name }}"
-          class="lazy w-[250px] h-[250px] object-contain mx-auto bg-gray-100"
+          class="delayed w-[250px] h-[250px] object-contain mx-auto bg-gray-100"
         />
       </figure>
       <div class="card-body">
@@ -51,16 +51,17 @@
         <p>{{ bottle.name }}</p>
         <p>ABV: {{ bottle.abv }}</p>
       </div>
-    </label>
-  
-    <!-- Modal -->
-    {% include "modals/bottle_card_popup.html" %}
+    </div>
   </div>
-
   {% endfor %}
-
 </div>
-<div id="load-trigger" class="h-10"></div>
+<input type="checkbox" id="bottle-modal" class="modal-toggle" />
+<div class="modal">
+  <div class="modal-box relative" id="bottle-modal-content">
+    <p class="text-center">Loading...</p>
+  </div>
+  <label for="bottle-modal" class="modal-backdrop"></label>
+</div>
 <script>
   async function openRandomBottleModal() {
     try {
@@ -68,15 +69,7 @@
       const result = await response.json();
 
       if (response.ok) {
-        // Open the modal for the random bottle
-        const modalId = `modal-${result.id}`;
-        const modalCheckbox = document.getElementById(modalId);
-
-        if (modalCheckbox) {
-          modalCheckbox.checked = true; // Open the modal
-        } else {
-          showAlert("Modal not found for the selected bottle.", "error");
-        }
+        fetchAndOpenModal(result.id);
       } else {
         showAlert(result.error || "Failed to fetch a random bottle.", "error");
       }
@@ -98,76 +91,113 @@
     });
   }
 
+  //takes a bottle id and opens the modal for that bottle
+  async function fetchAndOpenModal(bottleId) {
+    const modalContent = document.getElementById("bottle-modal-content");
+    const modalCheckbox = document.getElementById("bottle-modal");
 
-  let offset = 30;
-  const limit = 30;
-  let loading = false;
+    // Show modal and loading state
+    modalCheckbox.checked = true;
+    modalContent.innerHTML = `<div class="text-center py-6">Loading...</div>`;
 
-  const trigger = document.getElementById('load-trigger');
-  const grid = document.getElementById('bottle-grid');
+    try {
+      const response = await fetch("/modal/bottle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bottle_id: bottleId }),
+      });
 
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting && !loading) {
-        loading = true;
-        fetch(`/api/bottles?offset=${offset}&limit=${limit}`)
-          .then(res => res.json())
-          .then(bottles => {
-            bottles.forEach(bottle => {
-              const card = document.createElement('div');
-              card.className = 'card w-full bg-base-100 shadow-lg';
-              card.dataset.available = bottle.available;
+      const html = await response.text();
+      modalContent.innerHTML = html;
 
-              card.innerHTML = `
-                <label for="modal-${bottle.id}" class="cursor-pointer">
-                  <figure>
-                    <img
-                      data-src="/database_images/bottles/${bottle.image_path}"
-                      alt="${bottle.name}"
-                      class="lazy w-[250px] h-[250px] object-contain mx-auto bg-gray-100"
-                    />
-                  </figure>
-                  <div class="card-body">
-                    <h2 class="card-title">${bottle.brand}</h2>
-                    <p>${bottle.name}</p>
-                    <p>ABV: ${bottle.abv}</p>
-                  </div>
-                </label>
-              `;
-
-              grid.appendChild(card);
-            });
-
-            // Re-run lazy loading on new images
-            const lazyImages = document.querySelectorAll('img.lazy');
-            lazyImages.forEach(img => observerLazy.observe(img));
-
-            offset += bottles.length;
-            loading = false;
-
-            if (bottles.length < limit) {
-              observer.unobserve(trigger); // All bottles loaded
-            }
-          });
+      const reviewForm = modalContent.querySelector(`#addReviewForm-${bottleId}`);
+      if (reviewForm) {
+        attachReviewSubmitListener(reviewForm, bottleId);
       }
-    });
-  }, { rootMargin: "300px" });
+    } catch (err) {
+      console.error("Error loading modal content:", err);
+      modalContent.innerHTML = `<div class="text-center text-error py-6">Failed to load bottle information.</div>`;
+    }
+  }
 
-  observer.observe(trigger);
+  document.addEventListener("DOMContentLoaded", () => {
+    const bottleCards = document.querySelectorAll(".bottle-card");
 
-  // Lazy loading observer
-  const observerLazy = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        const img = entry.target;
-        img.src = img.dataset.src;
-        img.classList.remove('lazy');
-        observerLazy.unobserve(img);
-      }
+    bottleCards.forEach(card => {
+      card.addEventListener("click", () => {
+        const bottleId = card.dataset.bottleId;
+        fetchAndOpenModal(bottleId);
+      });
     });
   });
 
-  document.querySelectorAll('img.lazy').forEach(img => observerLazy.observe(img));
+
+  //staggered loading
+   document.addEventListener("DOMContentLoaded", () => {
+  setTimeout(() => {
+    const images = Array.from(document.querySelectorAll('img.delayed'));
+    
+    let i = 0;
+    const interval = setInterval(() => {
+      console.log("loading image")
+      if (i >= images.length) {
+        clearInterval(interval);
+        return;
+      }
+
+      const img = images[i];
+      if (img.dataset.src) {
+        img.src = img.dataset.src;
+        img.classList.remove('delayed');
+      }
+
+      i++;
+    }, 100); // Load one image every 30ms (adjust for performance)
+  }, 100); // Start loading after 500ms
+});
+
+//review submit listener
+function attachReviewSubmitListener(form, bottleId) {
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+    const jsonData = { bottle_id: bottleId, notes: [] };
+
+    formData.forEach((value, key) => {
+      if (key.startsWith("note_") || key.startsWith("subnote_") || key.startsWith("subsubnote_")) {
+        jsonData.notes.push(key);
+      } else {
+        jsonData[key] = value;
+      }
+    });
+
+    try {
+      showLoadingOverlay();
+      const response = await fetch("/api/add_review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jsonData),
+      });
+
+      const result = await response.json();
+      if (response.ok) {
+        showAlert("Review added successfully!", "success");
+        e.target.reset();
+        document.getElementById("bottle-modal").checked = false;
+      } else {
+        showAlert(result.error || "Failed to add the review.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert("An error occurred while adding the review.", "error");
+    } finally {
+      hideLoadingOverlay();
+    }
+  });
+}
+
+
 </script>
 
 {% endblock %}

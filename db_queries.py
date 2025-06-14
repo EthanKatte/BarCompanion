@@ -93,6 +93,10 @@ def get_bottles_from_query(query, params):
 
         for bottle in bottles:
             bottle_dict = dict(bottle)  # Convert the bottle row to a dictionary
+            bottle_dict["expert_tasting_notes"] = get_expert_tasting_notes_for_bottle(bottle["id"])
+            bottle_dict["tasting_notes"] = get_tasting_notes_by_bottle_id(bottle["id"])
+
+
             
             # Fetch reviews for this bottle
             cursor.execute("""
