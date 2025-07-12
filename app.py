@@ -44,22 +44,16 @@ def home():
 
 @app.route('/inventory', methods=["GET"])
 def inventory():
-    # Example data to pass to the inventory page
-    if len(request.args) == 0:
-        bottles = get_all_bottles()
-        tasting_notes = get_tasting_notes()
-        users = list(get_all_users_with_reviews())
-        return render_template('inventory.html', bottles=bottles, tasting_notes=tasting_notes, users=users)
-
+    # Build filters from query parameters
     filters = {
         "brand": request.args.get("brand"),
         "spirit_type": request.args.get("type"),
         "subtype": request.args.get("subtype"),
     }
-    sort_by = request.args.get("sort_by", "name")  # Default sort by name
-    order = request.args.get("order", "asc")  # Default order is ascending
+    sort_by = request.args.get("sort_by", "brand")  # Default sort by name
+    order = request.args.get("order", "asc")       # Default order ascending
 
-    # Build SQL query dynamically based on filters
+    # Build SQL query dynamically
     query = "SELECT * FROM bottles WHERE 1=1"
     params = []
     for key, value in filters.items():
@@ -67,10 +61,12 @@ def inventory():
             query += f" AND {key} = ?"
             params.append(value)
 
-    query += f" ORDER BY {sort_by} {order.upper()}"  # Add sorting
+    query += f" ORDER BY {sort_by} {order.upper()}"  # Always add ORDER BY
+
     bottles = get_bottles_from_query(query, params)
     tasting_notes = get_tasting_notes()
     users = get_all_users_with_reviews()
+
     return render_template('inventory.html', bottles=bottles, tasting_notes=tasting_notes, users=users)
 
 @app.route("/modal/bottle", methods=["POST"])

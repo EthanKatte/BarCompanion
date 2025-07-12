@@ -24,8 +24,8 @@
     <!-- Hidden Content (Revealed on Click) -->
     <div class="collapse-content mt-2 border-b-2 border-x-2 border-gray-900 rounded-b-3xl">
         <!-- Review Details -->
-        <p class="text-md text-gray-300 mb-2">{{ review.review_text }}</p>
-        <p class="text-sm text-gray-400 mb-2">{{ review.review_date }}</p>
+        <p class="text-md mb-2">{{ review.review_text }}</p>
+        <p class="text-sm mb-2">{{ review.review_date }}</p>
         {% for tasting_note in review.tasting_notes %}
           <div class="badge badge-lg tasting-note-{{ tasting_note.replace(' ', '').lower() }}">
             <span class="font-medium">{{ tasting_note }}</span>

@@ -5,16 +5,36 @@
     <form id="addBottleForm" class="space-y-4">
       <!-- Brand -->
       <div class="form-control">
+        {% set brand_ns = namespace(brands=[]) %}
+        {% for bottle in bottles %}
+          {% if bottle.brand is not none %}
+            {% set clean_brand = bottle.brand.strip() %}
+            {% if clean_brand != '' and clean_brand not in brand_ns.brands %}
+              {% set _ = brand_ns.brands.append(clean_brand) %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+
         <label class="label">
-          <span class="label-text">Brand</span>
+          <span class="label-text">Brand*</span>
         </label>
-        <input type="text" name="brand" class="input input-bordered" required />
+
+        <select name="brand_select" class="select select-bordered" id="brandSelect" required>
+          {% for brand in brand_ns.brands %}
+            <option value="{{ brand }}">{{ brand }}</option>
+          {% endfor %}
+          <option value="__custom__">[New Entry]</option>
+        </select>
+
+        <input type="text" name="brand" id="customBrand"
+              class="input input-bordered mt-2 hidden"
+              placeholder="Enter custom brand" />
       </div>
 
       <!-- Name -->
       <div class="form-control">
         <label class="label">
-          <span class="label-text">Name</span>
+          <span class="label-text">Name*</span>
         </label>
         <input type="text" name="name" class="input input-bordered" required />
       </div>
@@ -22,25 +42,66 @@
       <!-- ABV -->
       <div class="form-control">
         <label class="label">
-          <span class="label-text">ABV</span>
+          <span class="label-text">ABV*</span>
         </label>
-        <input type="number" name="abv" class="input input-bordered" placeholder="e.g., 40%" required />
+        <input type="number" name="abv" class="input input-bordered" placeholder="e.g., 40" required />
       </div>
 
-      <!-- Type -->
-      <div class="form-control">
-        <label class="label">
-          <span class="label-text">Type</span>
-        </label>
-        <input type="text" name="spirit_type" class="input input-bordered" required />
-      </div>
+    <!-- Type -->
+    <div class="form-control">
+      {% set type_ns = namespace(spirit_types=[]) %}
+      {% for bottle in bottles %}
+        {% if bottle.spirit_type is not none %}
+          {% if bottle.spirit_type and bottle.spirit_type.strip() %}
+            {% if bottle.spirit_type not in type_ns.spirit_types %}
+              {% set _ = type_ns.spirit_types.append(bottle.spirit_type) %}
+            {% endif %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      <label class="label">
+        <span class="label-text">Type*</span>
+      </label>
+
+      <select name="spirit_type_select" class="select select-bordered" id="spiritTypeSelect" required>
+        {% for type in type_ns.spirit_types %}
+          <option value="{{ type }}">{{ type }}</option>
+        {% endfor %}
+        <option value="__custom__">[New Entry]</option>
+      </select>
+
+      <input type="text" name="spirit_type" id="customSpiritType"
+            class="input input-bordered mt-2 hidden"
+            placeholder="Enter custom type" />
+    </div>
 
       <!-- Subtype -->
       <div class="form-control">
+      {% set subtype_ns = namespace(subtypes=[]) %}
+      {% for bottle in bottles %}
+        {% if bottle.subtype is not none %}
+          {% set clean_subtype = bottle.subtype.strip() %}
+          {% if clean_subtype != '' and clean_subtype not in subtype_ns.subtypes %}
+            {% set _ = subtype_ns.subtypes.append(clean_subtype) %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
         <label class="label">
           <span class="label-text">Subtype</span>
         </label>
-        <input type="text" name="subtype" class="input input-bordered" />
+
+        <select name="subtype_select" class="select select-bordered" id="subtypeSelect">
+          {% for subtype in subtype_ns.subtypes %}
+            <option value="{{ subtype }}">{{ subtype }}</option>
+          {% endfor %}
+          <option value="__custom__">[New Entry]</option>
+        </select>
+
+        <input type="text" name="subtype" id="customSubtype"
+              class="input input-bordered mt-2 hidden"
+              placeholder="Enter custom subtype" />
       </div>
 
       <!-- Description -->
@@ -75,6 +136,52 @@
 </div>
 
 <script>
+  //spirit brand selection
+  const brandSelect = document.getElementById('brandSelect');
+  const customBrandInput = document.getElementById('customBrand');
+
+  brandSelect.addEventListener('change', function () {
+    if (this.value === '__custom__') {
+      customBrandInput.classList.remove('hidden');
+      customBrandInput.required = true;
+    } else {
+      customBrandInput.classList.add('hidden');
+      customBrandInput.required = false;
+      customBrandInput.value = '';
+    }
+  });
+
+  //spirit sybtype selection
+  const subtypeSelect = document.getElementById('subtypeSelect');
+  const customSubtypeInput = document.getElementById('customSubtype');
+
+  subtypeSelect.addEventListener('change', function () {
+    if (this.value === '__custom__') {
+      customSubtypeInput.classList.remove('hidden');
+      customSubtypeInput.required = true;
+    } else {
+      customSubtypeInput.classList.add('hidden');
+      customSubtypeInput.required = false;
+      customSubtypeInput.value = '';
+    }
+  });
+
+  //spirit type selection
+  const select = document.getElementById('spiritTypeSelect');
+  const customInput = document.getElementById('customSpiritType');
+
+  select.addEventListener('change', function () {
+    if (this.value === '__custom__') {
+      customInput.classList.remove('hidden');
+      customInput.required = true;
+    } else {
+      customInput.classList.add('hidden');
+      customInput.required = false;
+      customInput.value = '';
+    }
+  });
+
+  //submit form
   document.getElementById("addBottleForm").addEventListener("submit", async function (e) {
     e.preventDefault(); // Prevent default form submission
 
@@ -97,10 +204,9 @@
     // Convert the image file to Base64
     const base64Image = await fileToBase64(file);
     jsonData.photo = base64Image;
-
+    showLoadingOverlay();
     try {
       // Send POST request to check if bottle exists
-      showLoadingOverlay();
       const existsResponse = await fetch(
         `/api/check_bottle?brand=${encodeURIComponent(jsonData.brand)}&name=${encodeURIComponent(jsonData.name)}`
       );
@@ -132,8 +238,8 @@
     } catch (error) {
       console.error("Error submitting form:", error);
       showAlert("An error occurred while adding the bottle.", "error");
+      hideLoadingOverlay();
     }
-    hideLoadingOverlay();
   });
 
   // Helper function to convert file to Base64

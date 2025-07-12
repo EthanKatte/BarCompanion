@@ -6,10 +6,19 @@
       <label class="label">
         <span class="label-text">Filter by Brand</span>
       </label>
+
+      {% set brand_ns = namespace(brands=[]) %}
+      {% for bottle in bottles %}
+        {% if bottle.brand and bottle.brand.strip() and bottle.brand not in brand_ns.brands %}
+          {% set _ = brand_ns.brands.append(bottle.brand.strip()) %}
+        {% endif %}
+      {% endfor %}
+      {% set sorted_brands = brand_ns.brands | sort %}
+
       <select id="filter-brand" class="select select-bordered">
         <option value="">All Brands</option>
-        {% for bottle in bottles %}
-        <option value="{{ bottle.brand }}">{{ bottle.brand }}</option>
+        {% for brand in sorted_brands %}
+          <option value="{{ brand }}">{{ brand }}</option>
         {% endfor %}
       </select>
     </div>
@@ -19,10 +28,19 @@
       <label class="label">
         <span class="label-text">Filter by Type</span>
       </label>
+
+      {% set type_ns = namespace(types=[]) %}
+      {% for bottle in bottles %}
+        {% if bottle.spirit_type and bottle.spirit_type.strip() and bottle.spirit_type.strip() not in type_ns.types %}
+          {% set _ = type_ns.types.append(bottle.spirit_type.strip()) %}
+        {% endif %}
+      {% endfor %}
+      {% set sorted_types = type_ns.types | sort %}
+
       <select id="filter-type" class="select select-bordered">
         <option value="">All Types</option>
-        {% for bottle in bottles %}
-        <option value="{{ bottle.spirit_type }}">{{ bottle.spirit_type }}</option>
+        {% for type in sorted_types %}
+          <option value="{{ type }}">{{ type }}</option>
         {% endfor %}
       </select>
     </div>
@@ -89,6 +107,7 @@
         }
       </script>
   </div>
+  <label for="filter-bottles-modal" class="modal-backdrop"></label>
 </div>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
@@ -110,4 +129,6 @@
     removeDuplicateOptions("filter-type");
     removeDuplicateOptions("filter-subtype");
   });
+
+
 </script>

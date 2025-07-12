@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Inventory - Bar Companion{% endblock %}
+{% block title %}Users - John's bahr{% endblock %}
 
 {% block content %}
 <h1 class="text-3xl font-bold mb-6">Users</h1>
@@ -29,10 +29,11 @@
         <h2 class="card-title">{{ user.name }}</h2>
       </div>
     </label>
+    {% include "modals/user_card_popup.html" %}
   
     <!-- Modal -->
-    {% include "modals/user_card_popup.html" %}
   </div>
+
 
   {% endfor %}
 

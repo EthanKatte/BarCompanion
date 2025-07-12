@@ -112,7 +112,7 @@ def get_bottles_from_query(query, params):
                 {
                     "reviewer_name": review["reviewer_name"],
                     "score": review["score"],
-                    "notes": review["review_text"],
+                    "review_text": review["review_text"],
                     "review_date": review["review_date"],
                     "tasting_notes": get_tasting_notes_by_review(review["id"])
                 }
