@@ -117,8 +117,17 @@
         <label class="label">
           <span class="label-text">Upload Image</span>
         </label>
-        <input type="file" name="photo" id="image-upload" class="file-input file-input-bordered" accept="image/*" required />
+        <input type="file" name="photo" id="image-upload" class="file-input file-input-bordered" accept="image/*" />
       </div>
+
+      <div class="form-control">
+        <button type="button" id="findImagesBtn" class="btn btn-secondary">
+          Find Images
+        </button>
+      </div>
+
+      <div id="image-options" class="grid grid-cols-3 gap-4 mt-4"></div>
+      <input type="hidden" name="selected_image_url" id="selectedImageUrl">
 
       <!-- Submit Button -->
       <div class="modal-action">
@@ -196,14 +205,18 @@
     const fileInput = document.getElementById("image-upload");
     const file = fileInput.files[0];
 
-    if (!file) {
-      showAlert("Please upload an image.", "error");
+    const selectedBase64 = document.getElementById("selectedImageUrl").value;
+
+    if (selectedBase64 && selectedBase64.startsWith("data:")) {
+      jsonData.photo = selectedBase64;
+    } else if (file) {
+      const base64Image = await fileToBase64(file);
+      jsonData.photo = base64Image;
+    } else {
+      showAlert("Please either select an image or upload one.", "error");
       return;
     }
 
-    // Convert the image file to Base64
-    const base64Image = await fileToBase64(file);
-    jsonData.photo = base64Image;
     showLoadingOverlay();
     try {
       // Send POST request to check if bottle exists
@@ -249,6 +262,70 @@
       reader.onload = () => resolve(reader.result);
       reader.onerror = (error) => reject(error);
       reader.readAsDataURL(file);
+    });
+  }
+
+  async function urlToBase64(url) {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+
+
+  document.getElementById("findImagesBtn").addEventListener("click", async function () {
+    const brandSelect = document.getElementById("brandSelect");
+    const brandInput = document.getElementById("customBrand");
+    const nameInput = document.querySelector("input[name='name']");
+    
+    const brand = brandSelect.value === "__custom__" ? brandInput.value : brandSelect.value;
+    const name = nameInput.value;
+
+    if (!brand || !name) {
+      showAlert("Please enter a brand and name first.", "error");
+      return;
+    }
+
+    // Fetch images from your /get_images endpoint
+    try {
+      const res = await fetch(`/get_images?brand=${encodeURIComponent(brand)}&name=${encodeURIComponent(name)}`);
+      const data = await res.json();
+      displayImageOptions(data.images);
+    } catch (err) {
+      console.error(err);
+      showAlert("Failed to fetch images.", "error");
+    }
+  });
+
+  // sets the div for showing the "find images" options
+  function displayImageOptions(images) {
+    const container = document.getElementById("image-options");
+    container.innerHTML = ""; // clear previous
+
+    if (!images.length) {
+      container.innerHTML = "<p>No images found. Try different keywords or upload manually.</p>";
+      return;
+    }
+
+    images.forEach(url => {
+      const div = document.createElement("div");
+      div.className = "border p-1 cursor-pointer hover:shadow-lg";
+      div.innerHTML = `<img src="${url}" class="w-full h-auto" />`;
+
+      div.addEventListener("click", async function () {
+        document.querySelectorAll("#image-options div").forEach(d => d.classList.remove("ring", "ring-primary"));
+        div.classList.add("ring", "ring-primary");
+
+        const base64 = await urlToBase64(url);
+        document.getElementById("selectedImageUrl").value = base64; // store in hidden
+      });
+
+      container.appendChild(div);
     });
   }
 </script>

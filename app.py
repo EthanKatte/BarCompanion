@@ -30,6 +30,7 @@ from db_queries import (get_all_bottles,
 from flask_cors import CORS
 import base64
 import os
+from duckduckgo_search import DDGS
 
 app = Flask(__name__)
 CORS(app)
@@ -223,6 +224,25 @@ def api_add_bottle():
         return jsonify({"error": f"Missing required field: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+    
+@app.route("/get_images")
+def get_images():
+    brand = request.args.get("brand", "")
+    name = request.args.get("name", "")
+    query = f"{brand} {name} whiskey bottle"
+
+    image_urls = []
+    try:
+        with DDGS() as ddgs:
+            results = ddgs.images(query, safesearch='Moderate', size='Medium')
+            for r in results:
+                image_urls.append(r["image"])
+                if len(image_urls) >= 9:
+                    break
+    except Exception as e:
+        print(f"Error fetching images: {e}")
+
+    return jsonify({"query": query, "images": image_urls})
 
 @app.route('/api/remove_entry', methods=["POST"])
 def api_remove_entry():
