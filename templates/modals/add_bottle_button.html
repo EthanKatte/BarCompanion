@@ -278,22 +278,21 @@
 
 
 
-  document.getElementById("findImagesBtn").addEventListener("click", async function () {
+ document.getElementById("findImagesBtn").addEventListener("click", async function () {
     const brandSelect = document.getElementById("brandSelect");
-    const brandInput = document.getElementById("customBrand");
-    const nameInput = document.querySelector("input[name='name']");
-    
+    const brandInput  = document.getElementById("customBrand");
+    const nameInput   = document.querySelector("input[name='name']");
+
     const brand = brandSelect.value === "__custom__" ? brandInput.value : brandSelect.value;
-    const name = nameInput.value;
+    const name  = nameInput.value;
 
     if (!brand || !name) {
       showAlert("Please enter a brand and name first.", "error");
       return;
     }
 
-    // Fetch images from your /get_images endpoint
     try {
-      const res = await fetch(`/get_images?brand=${encodeURIComponent(brand)}&name=${encodeURIComponent(name)}`);
+      const res  = await fetch(`/get_images?brand=${encodeURIComponent(brand)}&name=${encodeURIComponent(name)}`);
       const data = await res.json();
       displayImageOptions(data.images);
     } catch (err) {
@@ -302,27 +301,49 @@
     }
   });
 
+  function isDataUrl(str) {
+    return typeof str === "string" && str.startsWith("data:image/");
+  }
+
   // sets the div for showing the "find images" options
-  function displayImageOptions(images) {
+  async function displayImageOptions(images) {
     const container = document.getElementById("image-options");
     container.innerHTML = ""; // clear previous
 
-    if (!images.length) {
+    if (!images || !images.length) {
       container.innerHTML = "<p>No images found. Try different keywords or upload manually.</p>";
       return;
     }
 
-    images.forEach(url => {
+    images.forEach((src) => {
       const div = document.createElement("div");
-      div.className = "border p-1 cursor-pointer hover:shadow-lg";
-      div.innerHTML = `<img src="${url}" class="w-full h-auto" />`;
+      div.className = "border p-1 cursor-pointer hover:shadow-lg rounded";
 
-      div.addEventListener("click", async function () {
+      const img = document.createElement("img");
+      img.src = src;                    // works for data URLs AND http(s) URLs
+      img.alt = "Suggested bottle image";
+      img.loading = "lazy";
+      img.className = "w-full h-auto";
+      div.appendChild(img);
+
+      div.addEventListener("click", async () => {
         document.querySelectorAll("#image-options div").forEach(d => d.classList.remove("ring", "ring-primary"));
         div.classList.add("ring", "ring-primary");
 
-        const base64 = await urlToBase64(url);
-        document.getElementById("selectedImageUrl").value = base64; // store in hidden
+        let chosen;
+        if (isDataUrl(src)) {
+          // already base64 data URL from the server
+          chosen = src;
+        } else {
+          // fallback if you ever pass plain URLs
+          chosen = await urlToBase64(src);
+        }
+
+        document.getElementById("selectedImageUrl").value = chosen; // store in hidden input
+
+        // Optional live preview if you have an <img id="selectedImagePreview">
+        const preview = document.getElementById("selectedImagePreview");
+        if (preview) preview.src = chosen;
       });
 
       container.appendChild(div);

@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, redirect, send_from_directory
+import requests
 from db_queries import (get_all_bottles, 
                                 add_bottle, 
                                 remove_bottle, 
@@ -187,6 +188,7 @@ def expert_notes():
 def api_add_bottle():
     UPLOAD_FOLDER = "./database_images/bottles"
     data = request.json  # Parse JSON data from the request body
+    print(data)
 
     try:
         # Extract Base64 image data
@@ -231,18 +233,36 @@ def get_images():
     name = request.args.get("name", "")
     query = f"{brand} {name} whiskey bottle"
 
-    image_urls = []
+    image_data_list = []
+
     try:
         with DDGS() as ddgs:
             results = ddgs.images(query, safesearch='Moderate', size='Medium')
             for r in results:
-                image_urls.append(r["image"])
-                if len(image_urls) >= 9:
-                    break
+                image_url = r.get("image")
+                try:
+                    # Download image
+                    resp = requests.get(image_url, timeout=5)
+                    if resp.status_code == 200 and resp.content:
+                        # Encode as base64
+                        encoded = base64.b64encode(resp.content).decode("utf-8")
+                        # Guess MIME type from URL extension
+                        mime_type = "image/jpeg"
+                        if image_url.lower().endswith(".png"):
+                            mime_type = "image/png"
+                        elif image_url.lower().endswith(".gif"):
+                            mime_type = "image/gif"
+                        
+                        image_data_list.append(f"data:{mime_type};base64,{encoded}")
+
+                    if len(image_data_list) >= 6:
+                        break
+                except Exception as img_err:
+                    print(f"Error fetching image {image_url}: {img_err}")
     except Exception as e:
         print(f"Error fetching images: {e}")
-
-    return jsonify({"query": query, "images": image_urls})
+    print(image_data_list)
+    return jsonify({"query": query, "images": image_data_list})
 
 @app.route('/api/remove_entry', methods=["POST"])
 def api_remove_entry():
