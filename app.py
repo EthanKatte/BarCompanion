@@ -32,9 +32,37 @@ from flask_cors import CORS
 import base64
 import os
 from duckduckgo_search import DDGS
+import json
+import requests
+from urllib.parse import quote_plus
+from openai import OpenAI
+
 
 app = Flask(__name__)
 CORS(app)
+
+def get_api_key(filepath: str = "secrets.json", key_name: str = "OPENAI_KEY") -> str:
+    """
+    Reads and returns the API key from a local JSON file.
+
+    Args:
+        filepath (str): Path to the secrets file.
+        key_name (str): Key name to look up inside the JSON.
+
+    Returns:
+        str: The API key as a string.
+    """
+    try:
+        with open(filepath, "r") as f:
+            secrets = json.load(f)
+        api_key = secrets.get(key_name)
+        if not api_key:
+            raise ValueError(f"API key '{key_name}' not found in {filepath}")
+        return api_key
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Secrets file not found at: {filepath}")
+    except json.JSONDecodeError:
+        raise ValueError("Secrets file is not valid JSON")
 
 @app.route('/', methods=["GET"])
 def johns_bar():
@@ -181,6 +209,43 @@ def expert_notes():
 
     return render_template("expert_notes.html", bottles=bottles, tasting_notes=tasting_notes)
 
+def generate_description(bottle_query):
+    client = OpenAI(api_key=get_api_key())
+    context = [
+            {
+            "role": "system",
+            "content": (
+                "You are an authoritative whiskey expert and sommelier specializing in brand-accurate product descriptions. "
+                "When asked about a bottle, you must provide the *official* description that most closely matches the wording used "
+                "on the distillery or brand's official website or product release page. "
+                "If the exact wording is unavailable, write a faithful and neutral summary in the same professional tone. "
+                "Avoid speculation, user reviews, or tasting notes unless explicitly part of the brand's official marketing text. "
+                "Always maintain a formal, elegant tone that mirrors how distilleries describe their own whiskies."
+                "Do not include any html or web artifacts in your response."
+                "Do not include any discussion or other statements, only respond with the description."
+            )
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Provide the official description for {bottle_query}. "
+                "Focus strictly on the brand or distillery's own product description. "
+                "Do not include personal opinions or unrelated history. "
+                "If multiple editions exist, choose the one that best matches the core release unless otherwise specified."
+            )
+        },
+    ]
+    try:
+        response = client.chat.completions.create(
+            model="gpt-5",
+            messages=context
+        )
+        text = response.choices[0].message.content
+        return text
+    except Exception as e:
+        print(f"Error fetching description: {e}")
+    return ""
+
 
 # API Queries
 
@@ -194,10 +259,11 @@ def api_add_bottle():
         # Extract Base64 image data
         base64_image = data.get("photo")  # Expect Base64-encoded string in "image_path"
         image_filename = None
+       
 
         if base64_image:
             # Generate a unique filename for the image
-            image_filename = f"{data['name'].replace(' ', '_')}_{data['brand'].replace(' ', '_')}.png"
+            image_filename = f"{data['brand'].replace(' ', '_')}_{data['name'].replace(' ', '_')}.png"
             image_filepath = os.path.join(UPLOAD_FOLDER, image_filename)
 
             # Decode and save the image
@@ -209,6 +275,10 @@ def api_add_bottle():
 
         abv_data = data['abv'] if data['abv'].endswith("%") else data['abv'] + "%"
 
+        description = data.get('description')
+        if description.strip() == "":
+            description = generate_description(f"{data['brand']} {data['name']} {data['spirit_type']} ")
+
         # Add bottle to the database
         new_id = add_bottle(
             brand=data['brand'],
@@ -216,7 +286,7 @@ def api_add_bottle():
             abv=abv_data,
             spirit_type=data['spirit_type'],
             subtype=data.get('subtype'),
-            description=data.get('description'),
+            description=description,
             image_path=image_filename if image_filename else None  # Save the filename in DB
         )
 
@@ -261,7 +331,6 @@ def get_images():
                     print(f"Error fetching image {image_url}: {img_err}")
     except Exception as e:
         print(f"Error fetching images: {e}")
-    print(image_data_list)
     return jsonify({"query": query, "images": image_data_list})
 
 @app.route('/api/remove_entry', methods=["POST"])

@@ -1,4 +1,5 @@
 /node_modules
-barapp.tar
+*.tar
 /database/bar_companion.db
 /database_images
+secrets.json

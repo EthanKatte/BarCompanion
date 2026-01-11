@@ -32,18 +32,18 @@
   </div>
 </div>
 
-<div id="bottle-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-6">
+<div id="bottle-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
   {% for bottle in bottles %}
-  <div class="card w-full bg-base-100 shadow-lg" data-available="{{ bottle.available }}">
+  <div class="card w-full bg-gray-100 shadow-lg" data-available="{{ bottle.available }}">
     <div
-      class="cursor-pointer bottle-card"
+      class="cursor-pointer bottle-card mt-6"
       data-bottle-id="{{ bottle.id }}"
     >
       <figure>
         <img
           data-src="/database_images/bottles/{{ bottle.image_path }}"
           alt="{{ bottle.name }}"
-          class="delayed w-[250px] h-[250px] object-contain mx-auto bg-gray-100"
+          class="delayed w-[250px] h-[250px] object-contain mx-auto"
         />
       </figure>
       <div class="card-body">

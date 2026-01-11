@@ -7,18 +7,23 @@
 <div class="flex flex-col items-center">
   <button
     onclick="location.href='/inventory';"
-    class="btn btn-primary w-[60%] text-xl my-2">
+    class="btn btn-primary w-full text-xl my-2">
     View Inventory
   </button>
   <button
     onclick="location.href='/users';"
-    class="btn btn-primary w-[60%] text-xl my-2">
+    class="btn btn-primary w-full text-xl my-2">
     Users
   </button>
   <button
     onclick="location.href='/events';"
-    class="btn btn-primary w-[60%] text-xl my-2 hover:bg-blue-600">
+    class="btn btn-primary w-full text-xl my-2">
     Events
   </button>
+<button
+  onclick="alert('Nice try');"
+  class="btn btn-primary w-full text-xl my-2">
+  Admin
+</button>
 </div>
 {% endblock %}

@@ -27,10 +27,17 @@ COPY database/ ./database/
 COPY database_images/ ./database_images/
 
 # 🔧 Create target folder and copy CSS output
-RUN mkdir -p ./static/css
+RUN mkdir -p ./static/css ./static/Media
 COPY --from=tailwind-builder /build/static/css/tailwind.output.css ./static/css/tailwind.output.css
+COPY static/Media/johnsbahrlandscape.mp4 ./static/Media/johnsbahrlandscape.mp4
+COPY secrets.json ./secrets.json
+
 
 USER baruser
 EXPOSE 5000
 
 CMD ["python", "app.py"]
+
+
+julie@newktennis.com
+information@newktennis.com

@@ -202,6 +202,10 @@
       jsonData[key] = value;
     });
 
+    if (!jsonData.brand || jsonData.brand.trim() === "") {
+      jsonData.brand = jsonData.brand_select;
+    }
+
     const fileInput = document.getElementById("image-upload");
     const file = fileInput.files[0];
 
@@ -285,6 +289,7 @@
 
     const brand = brandSelect.value === "__custom__" ? brandInput.value : brandSelect.value;
     const name  = nameInput.value;
+    showLoadingOverlay();
 
     if (!brand || !name) {
       showAlert("Please enter a brand and name first.", "error");
@@ -299,6 +304,7 @@
       console.error(err);
       showAlert("Failed to fetch images.", "error");
     }
+      hideLoadingOverlay();
   });
 
   function isDataUrl(str) {
