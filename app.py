@@ -193,7 +193,7 @@ def event_client():
         return jsonify({"error": "User ID cookie not found"}), 404
 
 
-@app.route('/fuckoff', methods=["GET"])
+@app.route('/bartender', methods=["GET"])
 def admin_page():
     print(get_tasting_notes())
     try:
