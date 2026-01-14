@@ -3,36 +3,35 @@
 {% block title %}Inventory - John's bahr{% endblock %}
 
 {% block content %}
-<h1 class="text-3xl font-bold mb-6">Inventory</h1>
 <div class="flex items-center justify-between mb-6">
-  <div class="flex items-center space-x-4">
-    <div class="border p-1">
-      <label for="add-bottle-modal" class="btn btn-primary mr-2">Add Bottle +</label>
-    </div>
-    {% include "modals/add_bottle_button.html" %}
-    <div class="border border-gray-500 rounded-md p-1">
+  <h1 class="text-3xl font-bold ml-2">Inventory</h1>
+  <label for="add-bottle-modal" class="btn btn-primary mt-2  mr-2">Add Bottle +</label>
+</div>
+{% include "modals/add_bottle_button.html" %}
+<div class="flex items-center justify-between mb-6">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 ml-2">
+    <div>
       <label for="filter-bottles-modal" class="btn btn-primary">Filter ☰</label>
       {% include "modals/filter_bottle.html" %}
       <label onclick="window.location.href = '/inventory'" class="btn btn-tertiary">Clear Filters ×</label>
     </div>
-    <label class="flex items-center space-x-2">
-      <input 
-        type="checkbox" 
-        id="hide-unavailable-checkbox" 
+    <label class="flex items-center gap-2">
+      <input
+        type="checkbox"
+        id="hide-unavailable-checkbox"
         class="checkbox checkbox-primary"
         onchange="toggleAvailableBottles()"
       />
       <span>Hide Unavailable</span>
     </label>
   </div>
-  
   <!-- Right-aligned Surprise Me Button -->          
   <div class="ml-auto">
-    <button class="btn btn-secondary" onclick="openRandomBottleModal()">Surprise Me!</button>
+    <button class="btn btn-secondary m-2" onclick="openRandomBottleModal()">Surprise Me!</button>
   </div>
 </div>
 
-<div id="bottle-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+<div id="bottle-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 ml-2 mr-2">
   {% for bottle in bottles %}
   <div class="card w-full bg-gray-100 shadow-lg" data-available="{{ bottle.available }}">
     <div

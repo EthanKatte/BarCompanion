@@ -662,6 +662,24 @@ def get_tasting_notes_by_review(review_id):
 
 #expert note functions
 
+def get_tasting_note_names():
+    """
+    Retrieves the tasting notes 
+
+    Returns:
+    - list of strings: The names of the tasting notes
+    """
+    query = """
+    SELECT name
+    FROM tasting_notes 
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(query)
+        result = cursor.fetchall()
+
+    return [row[0] for row in result]
+
 def update_expert_notes(bottle_id, tasting_note_ids):
     """
     Updates the expert notes for a given bottle ID by removing existing notes

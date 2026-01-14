@@ -5,7 +5,7 @@
   <h1 class="text-3xl font-bold mb-6">Admin Dashboard</h1>
       
   <!-- Top-right buttons -->
-  <div class="absolute top-6 right-6 flex space-x-4 mt-[40px]">
+  <div class="absolute top-6 right-6 flex flex-wrap gap-4 mt-[40px]">
     <!-- Admin Button -->
     <a href="./fuckoff" class="btn btn-primary flex items-center">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 object-contain" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -21,6 +21,22 @@
       </svg>
       Expert Notes
     </a>
+
+    <!-- Update Expert Notes Button -->
+    <button type="button" class="btn btn-secondary flex items-center" onclick="refreshData('notes')">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 object-contain" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-9-8h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2z" />
+      </svg>
+      Update Expert Notes
+    </button>
+
+    <!-- Update Descriptions Button -->
+    <button type="button" class="btn btn-secondary flex items-center" onclick="refreshData('descriptions')">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 object-contain" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-9-8h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2z" />
+      </svg>
+      Update Descriptions
+    </button>
   </div>
 
   <!-- Manual Removal Form -->
@@ -77,6 +93,57 @@
   {% endfor %}
 </div>
 <script>
+    async function refreshData(kind) {
+      const limitInput = prompt("Optional limit (blank for all):", "");
+      if (limitInput === null) {
+        return;
+      }
+
+      let limit = null;
+      if (limitInput.trim() !== "") {
+        limit = Number.parseInt(limitInput, 10);
+        if (!Number.isFinite(limit) || limit <= 0) {
+          showAlert("Limit must be a positive number.", "error");
+          return;
+        }
+      }
+
+      const url = new URL("/api/refresh", window.location.origin);
+      url.searchParams.set("id", kind);
+      if (limit) {
+        url.searchParams.set("limit", String(limit));
+      }
+
+      try {
+        showLoadingOverlay();
+        const response = await fetch(url.toString(), { method: "POST" });
+        const result = await response.json();
+        if (response.ok) {
+          const updatedCount = Array.isArray(result.updated) ? result.updated.length : 0;
+          const skippedCount = Array.isArray(result.skipped) ? result.skipped.length : 0;
+          const errorCount = Array.isArray(result.errors) ? result.errors.length : 0;
+          const alertType = errorCount ? "error" : "success";
+          showAlert(
+            `Refresh ${kind}: updated ${updatedCount}, skipped ${skippedCount}, errors ${errorCount}.`,
+            alertType,
+            6000
+          );
+          if (!errorCount) {
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          }
+        } else {
+          showAlert(result.error || "Failed to refresh data.", "error");
+        }
+      } catch (error) {
+        console.error("Error refreshing data:", error);
+        showAlert("An error occurred while refreshing data.", "error");
+      } finally {
+        hideLoadingOverlay();
+      }
+    }
+
     async function removeEntry() {
       const table = document.getElementById("table-name").value.trim();
       const id = document.getElementById("record-id").value.trim();

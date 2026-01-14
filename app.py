@@ -26,7 +26,7 @@ from db_queries import (get_all_bottles,
                                 update_bottle_description,
                                 bottle_exists,
                                 user_exists,
-                                get_event_participants
+                                get_event_participants,
                                 )
 from flask_cors import CORS
 import base64
@@ -36,6 +36,9 @@ import json
 import requests
 from urllib.parse import quote_plus
 from openai import OpenAI
+from notes_generator import generate_expert_notes
+from description_generator import generate_description
+
 
 
 app = Flask(__name__)
@@ -195,7 +198,6 @@ def event_client():
 
 @app.route('/bartender', methods=["GET"])
 def admin_page():
-    print(get_tasting_notes())
     try:
         tables_data = get_all_tables_contents()
         return render_template("admin.html", tables_data=tables_data)
@@ -209,42 +211,70 @@ def expert_notes():
 
     return render_template("expert_notes.html", bottles=bottles, tasting_notes=tasting_notes)
 
-def generate_description(bottle_query):
-    client = OpenAI(api_key=get_api_key())
-    context = [
-            {
-            "role": "system",
-            "content": (
-                "You are an authoritative whiskey expert and sommelier specializing in brand-accurate product descriptions. "
-                "When asked about a bottle, you must provide the *official* description that most closely matches the wording used "
-                "on the distillery or brand's official website or product release page. "
-                "If the exact wording is unavailable, write a faithful and neutral summary in the same professional tone. "
-                "Avoid speculation, user reviews, or tasting notes unless explicitly part of the brand's official marketing text. "
-                "Always maintain a formal, elegant tone that mirrors how distilleries describe their own whiskies."
-                "Do not include any html or web artifacts in your response."
-                "Do not include any discussion or other statements, only respond with the description."
-            )
-        },
-        {
-            "role": "user",
-            "content": (
-                f"Provide the official description for {bottle_query}. "
-                "Focus strictly on the brand or distillery's own product description. "
-                "Do not include personal opinions or unrelated history. "
-                "If multiple editions exist, choose the one that best matches the core release unless otherwise specified."
-            )
-        },
-    ]
-    try:
-        response = client.chat.completions.create(
-            model="gpt-5",
-            messages=context
-        )
-        text = response.choices[0].message.content
-        return text
-    except Exception as e:
-        print(f"Error fetching description: {e}")
-    return ""
+@app.route("/api/refresh", methods=["POST"])
+def refresh_data():
+    data_type = request.args.get("id")  # "descriptions" or "notes"
+    limit = int(request.args.get("limit", 0) or 0)
+
+    bottles = get_all_bottles()
+    updated = []
+    skipped = []
+    errors = []
+
+    if data_type == "descriptions":
+        targets = [
+            b for b in bottles
+            if not (b.get("description") or "").strip()
+        ]
+        if limit:
+            targets = targets[:limit]
+
+        for bottle in targets:
+            try:
+                query = f"{bottle['brand']} {bottle['name']} {bottle['spirit_type']}"
+                description = generate_description(query)
+                if description:
+                    update_bottle_description(bottle["id"], description)
+                    updated.append(bottle["id"])
+                else:
+                    skipped.append(bottle["id"])
+            except Exception as exc:
+                errors.append({"id": bottle["id"], "error": str(exc)})
+
+        return jsonify({"updated": updated, "skipped": skipped, "errors": errors}), 200
+
+    if data_type == "notes":
+        targets = [
+            b for b in bottles
+            if not b.get("expert_tasting_notes")
+        ]
+        if limit:
+            targets = targets[:limit]
+
+        for bottle in targets:
+            try:
+                query = f"{bottle['brand']} {bottle['name']} {bottle['spirit_type']}"
+                result = generate_expert_notes(query)
+
+                note_ids = []
+                for note in result.get("notes", []):
+                    note_id = get_tasting_note_id(note)
+                    if note_id is not None:
+                        note_ids.append(note_id)
+                print("updating ", query, "with AI result ",  result, "and tasting note ids ", note_id )
+
+                if note_ids:
+                    update_expert_notes(bottle["id"], note_ids)
+                    updated.append(bottle["id"])
+                else:
+                    skipped.append(bottle["id"])
+            except Exception as exc:
+                errors.append({"id": bottle["id"], "error": str(exc)})
+
+        return jsonify({"updated": updated, "skipped": skipped, "errors": errors}), 200
+
+    return jsonify({"error": "Unknown refresh type received (descriptions or notes)"}), 400
+
 
 
 # API Queries
@@ -296,7 +326,7 @@ def api_add_bottle():
         return jsonify({"error": f"Missing required field: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
-    
+
 @app.route("/get_images")
 def get_images():
     brand = request.args.get("brand", "")
@@ -340,11 +370,25 @@ def api_remove_entry():
     try:
         table = data["table"]
         record_id = data["id"]
-        result = remove_record(table, record_id)  # Generalized function to remove a record
-        if result > 0:
-            return jsonify({"message": f"Record removed from {table} successfully."}), 200
+        if isinstance(record_id, list):
+            record_ids = record_id
+        elif isinstance(record_id, str):
+            record_ids = record_id.split(",")
         else:
-            return jsonify({"error": f"No record found with ID {record_id} in {table}."}), 404
+            record_ids = [record_id]
+
+        record_ids = [str(rid).strip() for rid in record_ids if str(rid).strip()]
+        if not record_ids:
+            return jsonify({"error": "Record ID is required."}), 400
+
+        results = {"data": []}
+        for rid in record_ids:
+            result = remove_record(table, rid)  # Generalized function to remove a record
+            if result > 0:
+                results["data"].append({"message": f"Record {rid} removed from {table} successfully."})
+            else:
+                results["data"].append({"error": f"No record found with ID {rid} in {table}."})
+        return jsonify(results), 200
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
