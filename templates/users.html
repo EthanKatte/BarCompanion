@@ -3,39 +3,156 @@
 {% block title %}Users - John's bahr{% endblock %}
 
 {% block content %}
-<h1 class="text-3xl font-bold mb-6">Users</h1>
-<div class="flex">
-  <div class="border  p-1">
-    <label for="add-user-modal" class="btn btn-primary mr-2">Add User + </label>
-  </div>
-  {% include "modals/add_user_button.html" %}
+{% set users_list = users | list %}
+{% set total_users = users_list | length %}
+{% set total_reviews = users_list | map(attribute='reviews') | map('length') | sum %}
+{% set users_with_reviews = users_list | selectattr('reviews') | list | length %}
 
-</div>
-<div class="grid grid-cols-3 gap-6">
-
-  {% for user in users %}
-
-  <div class="card w-full bg-base-100 shadow-lg">
-    <!-- Trigger Button -->
-    <label for="user-modal-{{ user.id }}" class="cursor-pointer">
-      <figure>
-        <img
-          src="/database_images/users/{{ user.image_path }}"
-          alt="{{ user.name }}"
-          class="w-[250px] h-[250px] object-contain mx-auto"
-        />
-      </figure>
-      <div class="card-body">
-        <h2 class="card-title">{{ user.name }}</h2>
+<div class="catalog-shell">
+  <div class="catalog-orb catalog-orb--a"></div>
+  <div class="catalog-orb catalog-orb--b"></div>
+  <div class="catalog-content">
+    <div class="catalog-hero">
+      <div>
+        <p class="catalog-eyebrow">Community roster</p>
+        <h1 class="catalog-title">Users</h1>
+        <p class="catalog-subtitle">
+          Keep track of tasters, their pours, and the notes they have left behind.
+        </p>
+        <div class="catalog-stats">
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Total users</span>
+            <span class="catalog-stat__value">{{ total_users }}</span>
+          </div>
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">With reviews</span>
+            <span class="catalog-stat__value">{{ users_with_reviews }}</span>
+          </div>
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Total reviews</span>
+            <span class="catalog-stat__value">{{ total_reviews }}</span>
+          </div>
+        </div>
       </div>
-    </label>
-    {% include "modals/user_card_popup.html" %}
-  
-    <!-- Modal -->
+      <div class="catalog-actions">
+        <label for="add-user-modal" class="btn btn-primary catalog-btn">Add User</label>
+      </div>
+    </div>
+
+    {% include "modals/add_user_button.html" %}
+
+    <div class="catalog-controls">
+      <div class="catalog-search">
+        <label class="catalog-search__label" for="user-search">Search users</label>
+        <input
+          id="user-search"
+          type="text"
+          class="input input-bordered catalog-search__input"
+          placeholder="Search by name"
+        />
+        <div class="catalog-search__meta">
+          <span id="user-count">{{ total_users }} users</span>
+        </div>
+      </div>
+      <div class="catalog-controls__actions">
+        <label class="catalog-toggle">
+          <input type="checkbox" id="users-with-reviews" class="checkbox checkbox-primary" />
+          <span>Only with reviews</span>
+        </label>
+        <div class="catalog-filter-group">
+          <button class="btn btn-tertiary" type="button" onclick="clearUserFilters()">
+            Reset filters
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="user-grid" class="catalog-grid">
+      {% for user in users_list %}
+      <div
+        class="catalog-card"
+        data-search="{{ user.name }}"
+        data-has-reviews="{{ 1 if user.reviews|length > 0 else 0 }}"
+      >
+        <label for="user-modal-{{ user.id }}" class="catalog-card__click">
+          <div class="catalog-card__media">
+            <img
+              src="/database_images/users/{{ user.image_path }}"
+              alt="{{ user.name }}"
+            />
+          </div>
+          <div class="catalog-card__body">
+            <div class="catalog-card__header">
+              <h2 class="catalog-card__brand">{{ user.name }}</h2>
+            </div>
+            <div class="catalog-card__meta">
+              {% if user.reviews|length > 0 %}
+              <span class="catalog-chip">{{ user.reviews|length }} reviews</span>
+              {% else %}
+              <span class="catalog-chip catalog-chip--muted">No reviews yet</span>
+              {% endif %}
+            </div>
+          </div>
+        </label>
+      </div>
+              {% include "modals/user_card_popup.html" %}
+      {% endfor %}
+    </div>
   </div>
-
-
-  {% endfor %}
-
 </div>
+
+<script>
+  function applyUserFilters() {
+    const searchInput = document.getElementById("user-search");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const onlyWithReviews = document.getElementById("users-with-reviews")?.checked;
+    const cards = document.querySelectorAll("#user-grid .catalog-card");
+    let visibleCount = 0;
+
+    cards.forEach((card) => {
+      const searchText = (card.dataset.search || "").toLowerCase();
+      const hasReviews = card.dataset.hasReviews === "1";
+      const matchesSearch = !query || searchText.includes(query);
+      const matchesReviews = !onlyWithReviews || hasReviews;
+      const shouldShow = matchesSearch && matchesReviews;
+
+      card.classList.toggle("hidden", !shouldShow);
+      if (shouldShow) {
+        visibleCount += 1;
+      }
+    });
+
+    const countEl = document.getElementById("user-count");
+    if (countEl) {
+      countEl.textContent = `${visibleCount} users`;
+    }
+  }
+
+  function clearUserFilters() {
+    const searchInput = document.getElementById("user-search");
+    const reviewsToggle = document.getElementById("users-with-reviews");
+    if (searchInput) {
+      searchInput.value = "";
+    }
+    if (reviewsToggle) {
+      reviewsToggle.checked = false;
+    }
+    applyUserFilters();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const searchInput = document.getElementById("user-search");
+    if (searchInput) {
+      searchInput.addEventListener("input", applyUserFilters);
+    }
+
+    const reviewsToggle = document.getElementById("users-with-reviews");
+    if (reviewsToggle) {
+      reviewsToggle.addEventListener("change", applyUserFilters);
+    }
+
+    applyUserFilters();
+  });
+</script>
+
 {% endblock %}

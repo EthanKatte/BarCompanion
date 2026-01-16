@@ -1,32 +1,167 @@
 {% extends "base.html" %}
 
-{% block title %}Inventory - Bar Companion{% endblock %}
+{% block title %}Events - John's bahr{% endblock %}
 
 {% block content %}
-<h1 class="text-3xl font-bold mb-6">Events</h1>
-<div class="flex">
-  <div class="border  p-1">
-    <label for="add-event-modal" class="btn btn-primary mr-2">Add event + </label>
-  </div>
-  {% include "modals/add_event_button.html" %}
+{% set events_list = events | list %}
+{% set total_events = events_list | length %}
+{% set total_guests = events_list | map(attribute='users') | map('length') | sum %}
+{% set total_bottles = events_list | map(attribute='bottles') | map('length') | sum %}
 
-</div>
-<div class="grid grid-cols-3 gap-6">
-
-  {% for event in events %}
-  <div class="card w-full bg-base-100 shadow-lg">
-    <!-- Trigger Button -->
-    <label for="event-modal-{{ event.id }}" class="cursor-pointer">
-      <div class="card-body">
-        <h2 class="card-title">{{ event.name }}</h2>
-        <h4 >{{ event.event_date }}</h4>
+<div class="catalog-shell">
+  <div class="catalog-orb catalog-orb--a"></div>
+  <div class="catalog-orb catalog-orb--b"></div>
+  <div class="catalog-content">
+    <div class="catalog-hero">
+      <div>
+        <p class="catalog-eyebrow">Tasting calendar</p>
+        <h1 class="catalog-title">Events</h1>
+        <p class="catalog-subtitle">
+          Plan tastings, manage guest lists, and track the bottles poured at each event.
+        </p>
+        <div class="catalog-stats">
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Total events</span>
+            <span class="catalog-stat__value">{{ total_events }}</span>
+          </div>
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Guests invited</span>
+            <span class="catalog-stat__value">{{ total_guests }}</span>
+          </div>
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Bottles poured</span>
+            <span class="catalog-stat__value">{{ total_bottles }}</span>
+          </div>
+        </div>
       </div>
-    </label>
-    <script>console.log("{{event.users}}");</script>
-    <!-- Modal -->
-    {% include "modals/event_card_popup.html" %}
-  </div>
-  {% endfor %}
+      <div class="catalog-actions">
+        <label for="add-event-modal" class="btn btn-primary catalog-btn">Add Event</label>
+      </div>
+    </div>
 
+    {% include "modals/add_event_button.html" %}
+
+    <div class="catalog-controls">
+      <div class="catalog-search">
+        <label class="catalog-search__label" for="event-search">Search events</label>
+        <input
+          id="event-search"
+          type="text"
+          class="input input-bordered catalog-search__input"
+          placeholder="Search by name or date"
+        />
+        <div class="catalog-search__meta">
+          <span id="event-count">{{ total_events }} events</span>
+        </div>
+      </div>
+      <div class="catalog-controls__actions">
+        <label class="catalog-toggle">
+          <input type="checkbox" id="events-with-guests" class="checkbox checkbox-primary" />
+          <span>Only with guests</span>
+        </label>
+        <label class="catalog-toggle">
+          <input type="checkbox" id="events-with-bottles" class="checkbox checkbox-primary" />
+          <span>Only with bottles</span>
+        </label>
+        <div class="catalog-filter-group">
+          <button class="btn btn-tertiary" type="button" onclick="clearEventFilters()">
+            Reset filters
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="event-grid" class="catalog-grid">
+      {% for event in events_list %}
+      <div
+        class="catalog-card"
+        data-search="{{ event.name }} {{ event.event_date }}"
+        data-has-guests="{{ 1 if event.users|length > 0 else 0 }}"
+        data-has-bottles="{{ 1 if event.bottles|length > 0 else 0 }}"
+      >
+        <label for="event-modal-{{ event.id }}" class="catalog-card__click">
+          <div class="catalog-card__body">
+            <div class="catalog-card__header">
+              <h2 class="catalog-card__brand">{{ event.name }}</h2>
+            </div>
+            <p class="catalog-card__name">{{ event.event_date }}</p>
+            <div class="catalog-card__meta">
+              <span class="catalog-chip">{{ event.users|length }} guests</span>
+              <span class="catalog-chip catalog-chip--muted">{{ event.bottles|length }} bottles</span>
+            </div>
+          </div>
+        </label>
+      </div>
+      {% include "modals/event_card_popup.html" %}
+      {% endfor %}
+    </div>
+  </div>
 </div>
+
+<script>
+  function applyEventFilters() {
+    const searchInput = document.getElementById("event-search");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const onlyWithGuests = document.getElementById("events-with-guests")?.checked;
+    const onlyWithBottles = document.getElementById("events-with-bottles")?.checked;
+    const cards = document.querySelectorAll("#event-grid .catalog-card");
+    let visibleCount = 0;
+
+    cards.forEach((card) => {
+      const searchText = (card.dataset.search || "").toLowerCase();
+      const hasGuests = card.dataset.hasGuests === "1";
+      const hasBottles = card.dataset.hasBottles === "1";
+      const matchesSearch = !query || searchText.includes(query);
+      const matchesGuests = !onlyWithGuests || hasGuests;
+      const matchesBottles = !onlyWithBottles || hasBottles;
+      const shouldShow = matchesSearch && matchesGuests && matchesBottles;
+
+      card.classList.toggle("hidden", !shouldShow);
+      if (shouldShow) {
+        visibleCount += 1;
+      }
+    });
+
+    const countEl = document.getElementById("event-count");
+    if (countEl) {
+      countEl.textContent = `${visibleCount} events`;
+    }
+  }
+
+  function clearEventFilters() {
+    const searchInput = document.getElementById("event-search");
+    const guestsToggle = document.getElementById("events-with-guests");
+    const bottlesToggle = document.getElementById("events-with-bottles");
+    if (searchInput) {
+      searchInput.value = "";
+    }
+    if (guestsToggle) {
+      guestsToggle.checked = false;
+    }
+    if (bottlesToggle) {
+      bottlesToggle.checked = false;
+    }
+    applyEventFilters();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const searchInput = document.getElementById("event-search");
+    if (searchInput) {
+      searchInput.addEventListener("input", applyEventFilters);
+    }
+
+    const guestsToggle = document.getElementById("events-with-guests");
+    if (guestsToggle) {
+      guestsToggle.addEventListener("change", applyEventFilters);
+    }
+
+    const bottlesToggle = document.getElementById("events-with-bottles");
+    if (bottlesToggle) {
+      bottlesToggle.addEventListener("change", applyEventFilters);
+    }
+
+    applyEventFilters();
+  });
+</script>
+
 {% endblock %}

@@ -3,57 +3,116 @@
 {% block title %}Inventory - John's bahr{% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-between mb-6">
-  <h1 class="text-3xl font-bold ml-2">Inventory</h1>
-  <label for="add-bottle-modal" class="btn btn-primary mt-2  mr-2">Add Bottle +</label>
-</div>
-{% include "modals/add_bottle_button.html" %}
-<div class="flex items-center justify-between mb-6">
-  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 ml-2">
-    <div>
-      <label for="filter-bottles-modal" class="btn btn-primary">Filter ☰</label>
-      {% include "modals/filter_bottle.html" %}
-      <label onclick="window.location.href = '/inventory'" class="btn btn-tertiary">Clear Filters ×</label>
+{% set total_bottles = bottles|length %}
+{% set available_bottles = bottles | selectattr("available", "equalto", 1) | list | length %}
+{% set unavailable_bottles = total_bottles - available_bottles %}
+
+<div class="catalog-shell">
+  <div class="catalog-orb catalog-orb--a"></div>
+  <div class="catalog-orb catalog-orb--b"></div>
+  <div class="catalog-content">
+    <div class="catalog-hero">
+      <div>
+        <p class="catalog-eyebrow">Cellar overview</p>
+        <h1 class="catalog-title">Inventory</h1>
+        <p class="catalog-subtitle">
+          Browse every bottle in the collection, filter by style, and jump straight into a tasting note.
+        </p>
+        <div class="catalog-stats">
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Total bottles</span>
+            <span class="catalog-stat__value">{{ total_bottles }}</span>
+          </div>
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Available</span>
+            <span class="catalog-stat__value">{{ available_bottles }}</span>
+          </div>
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Unavailable</span>
+            <span class="catalog-stat__value">{{ unavailable_bottles }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="catalog-actions">
+        <label for="add-bottle-modal" class="btn btn-primary catalog-btn">Add Bottle</label>
+        <button class="btn btn-secondary catalog-btn" onclick="openRandomBottleModal()">Surprise Me</button>
+      </div>
     </div>
-    <label class="flex items-center gap-2">
-      <input
-        type="checkbox"
-        id="hide-unavailable-checkbox"
-        class="checkbox checkbox-primary"
-        onchange="toggleAvailableBottles()"
-      />
-      <span>Hide Unavailable</span>
-    </label>
-  </div>
-  <!-- Right-aligned Surprise Me Button -->          
-  <div class="ml-auto">
-    <button class="btn btn-secondary m-2" onclick="openRandomBottleModal()">Surprise Me!</button>
+
+    {% include "modals/add_bottle_button.html" %}
+
+    <div class="catalog-controls">
+      <div class="catalog-search">
+        <label class="catalog-search__label" for="inventory-search">Search bottles</label>
+        <input
+          id="inventory-search"
+          type="text"
+          class="input input-bordered catalog-search__input"
+          placeholder="Search brand, bottle, or style"
+        />
+        <div class="catalog-search__meta">
+          <span id="inventory-count">{{ total_bottles }} bottles</span>
+        </div>
+      </div>
+      <div class="catalog-controls__actions">
+        <label class="catalog-toggle">
+          <input
+            type="checkbox"
+            id="inventory-hide-unavailable"
+            class="checkbox checkbox-primary"
+          />
+          <span>Hide unavailable</span>
+        </label>
+        <div class="catalog-filter-group">
+          <label for="filter-bottles-modal" class="btn btn-primary">Filter</label>
+          {% include "modals/filter_bottle.html" %}
+          <button class="btn btn-tertiary" type="button" onclick="window.location.href = '/inventory'">
+            Clear filters
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="bottle-grid" class="catalog-grid">
+      {% for bottle in bottles %}
+      <div
+        class="catalog-card{% if bottle.available != 1 %} is-unavailable{% endif %}"
+        data-available="{{ bottle.available }}"
+        data-search="{{ bottle.brand }} {{ bottle.name }} {{ bottle.spirit_type }} {{ bottle.subtype }}"
+      >
+        <div class="catalog-card__click bottle-card" data-bottle-id="{{ bottle.id }}">
+          <div class="catalog-card__media">
+            <img
+              data-src="/database_images/bottles/{{ bottle.image_path }}"
+              alt="{{ bottle.name }}"
+              class="delayed"
+            />
+            {% if bottle.available == 1 %}
+              <span class="catalog-badge catalog-badge--available">Available</span>
+            {% else %}
+              <span class="catalog-badge catalog-badge--unavailable">Unavailable</span>
+            {% endif %}
+          </div>
+          <div class="catalog-card__body">
+            <div class="catalog-card__header">
+              <h2 class="catalog-card__brand">{{ bottle.brand }}</h2>
+              <span class="catalog-card__abv">{{ bottle.abv }}</span>
+            </div>
+            <p class="catalog-card__name">{{ bottle.name }}</p>
+            <div class="catalog-card__meta">
+              <span class="catalog-chip">{{ bottle.spirit_type }}</span>
+              {% if bottle.subtype %}
+              <span class="catalog-chip catalog-chip--muted">{{ bottle.subtype }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 </div>
 
-<div id="bottle-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 ml-2 mr-2">
-  {% for bottle in bottles %}
-  <div class="card w-full bg-gray-100 shadow-lg" data-available="{{ bottle.available }}">
-    <div
-      class="cursor-pointer bottle-card mt-6"
-      data-bottle-id="{{ bottle.id }}"
-    >
-      <figure>
-        <img
-          data-src="/database_images/bottles/{{ bottle.image_path }}"
-          alt="{{ bottle.name }}"
-          class="delayed w-[250px] h-[250px] object-contain mx-auto"
-        />
-      </figure>
-      <div class="card-body">
-        <h2 class="card-title">{{ bottle.brand }}</h2>
-        <p>{{ bottle.name }}</p>
-        <p>ABV: {{ bottle.abv }}</p>
-      </div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
 <input type="checkbox" id="bottle-modal" class="modal-toggle" />
 <div class="modal">
   <div class="modal-box relative" id="bottle-modal-content">
@@ -61,6 +120,7 @@
   </div>
   <label for="bottle-modal" class="modal-backdrop"></label>
 </div>
+
 <script>
   async function openRandomBottleModal() {
     try {
@@ -78,16 +138,34 @@
     }
   }
 
-  function toggleAvailableBottles() {
-    const bottles = document.querySelectorAll("#bottle-grid .card");
-    console.log("toggling");
-    bottles.forEach((bottle) => {
-      const isAvailable = bottle.getAttribute("data-available") === "1";
-      if (!isAvailable) {
-        bottle.classList.toggle("hidden");
+  function applyInventoryFilters() {
+    const searchInput = document.getElementById("inventory-search");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const hideUnavailable = document.getElementById("inventory-hide-unavailable")?.checked;
+    const bottles = document.querySelectorAll("#bottle-grid .catalog-card");
+    let visibleCount = 0;
 
+    bottles.forEach((bottle) => {
+      const searchText = (bottle.dataset.search || "").toLowerCase();
+      const isAvailable = bottle.dataset.available === "1";
+      const matchesSearch = !query || searchText.includes(query);
+      const matchesAvailability = !hideUnavailable || isAvailable;
+      const shouldShow = matchesSearch && matchesAvailability;
+
+      bottle.classList.toggle("hidden", !shouldShow);
+      if (shouldShow) {
+        visibleCount += 1;
       }
     });
+
+    const countEl = document.getElementById("inventory-count");
+    if (countEl) {
+      countEl.textContent = `${visibleCount} bottles`;
+    }
+  }
+
+  function toggleAvailableBottles() {
+    applyInventoryFilters();
   }
 
   //takes a bottle id and opens the modal for that bottle
@@ -121,82 +199,89 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     const bottleCards = document.querySelectorAll(".bottle-card");
-
-    bottleCards.forEach(card => {
+    bottleCards.forEach((card) => {
       card.addEventListener("click", () => {
         const bottleId = card.dataset.bottleId;
         fetchAndOpenModal(bottleId);
       });
     });
-  });
 
+    const searchInput = document.getElementById("inventory-search");
+    if (searchInput) {
+      searchInput.addEventListener("input", applyInventoryFilters);
+    }
+
+    const hideUnavailable = document.getElementById("inventory-hide-unavailable");
+    if (hideUnavailable) {
+      hideUnavailable.addEventListener("change", applyInventoryFilters);
+    }
+
+    applyInventoryFilters();
+  });
 
   //staggered loading
-   document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(() => {
-    const images = Array.from(document.querySelectorAll('img.delayed'));
-    
-    let i = 0;
-    const interval = setInterval(() => {
-      console.log("loading image")
-      if (i >= images.length) {
-        clearInterval(interval);
-        return;
-      }
+  document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+      const images = Array.from(document.querySelectorAll("img.delayed"));
 
-      const img = images[i];
-      if (img.dataset.src) {
-        img.src = img.dataset.src;
-        img.classList.remove('delayed');
-      }
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i >= images.length) {
+          clearInterval(interval);
+          return;
+        }
 
-      i++;
-    }, 50); // Load one image every 30ms (adjust for performance)
-  }, 100); // Start loading after 500ms
-});
+        const img = images[i];
+        if (img.dataset.src) {
+          img.src = img.dataset.src;
+          img.classList.remove("delayed");
+        }
 
-//review submit listener
-function attachReviewSubmitListener(form, bottleId) {
-  form.addEventListener("submit", async function (e) {
-    e.preventDefault();
+        i++;
+      }, 50);
+    }, 100);
+  });
 
-    const formData = new FormData(e.target);
-    const jsonData = { bottle_id: bottleId, notes: [] };
+  //review submit listener
+  function attachReviewSubmitListener(form, bottleId) {
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
 
-    formData.forEach((value, key) => {
-      if (key.startsWith("note_") || key.startsWith("subnote_") || key.startsWith("subsubnote_")) {
-        jsonData.notes.push(key);
-      } else {
-        jsonData[key] = value;
-      }
-    });
+      const formData = new FormData(e.target);
+      const jsonData = { bottle_id: bottleId, notes: [] };
 
-    try {
-      showLoadingOverlay();
-      const response = await fetch("/api/add_review", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(jsonData),
+      formData.forEach((value, key) => {
+        if (key.startsWith("note_") || key.startsWith("subnote_") || key.startsWith("subsubnote_")) {
+          jsonData.notes.push(key);
+        } else {
+          jsonData[key] = value;
+        }
       });
 
-      const result = await response.json();
-      if (response.ok) {
-        showAlert("Review added successfully!", "success");
-        e.target.reset();
-        document.getElementById("bottle-modal").checked = false;
-      } else {
-        showAlert(result.error || "Failed to add the review.", "error");
+      try {
+        showLoadingOverlay();
+        const response = await fetch("/api/add_review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(jsonData),
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+          showAlert("Review added successfully!", "success");
+          e.target.reset();
+          document.getElementById("bottle-modal").checked = false;
+        } else {
+          showAlert(result.error || "Failed to add the review.", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert("An error occurred while adding the review.", "error");
+      } finally {
+        hideLoadingOverlay();
       }
-    } catch (err) {
-      console.error(err);
-      showAlert("An error occurred while adding the review.", "error");
-    } finally {
-      hideLoadingOverlay();
-    }
-  });
-}
-
-
+    });
+  }
 </script>
 
 {% endblock %}
