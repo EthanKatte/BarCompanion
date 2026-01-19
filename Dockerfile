@@ -37,7 +37,3 @@ USER baruser
 EXPOSE 5000
 
 CMD ["python", "app.py"]
-
-
-julie@newktennis.com
-information@newktennis.com

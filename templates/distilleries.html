@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Distilleries - John's bahr{% endblock %}
+
+{% block content %}
+{% set total_distilleries = distilleries|length %}
+
+<div class="catalog-shell">
+  <div class="catalog-orb catalog-orb--a"></div>
+  <div class="catalog-orb catalog-orb--b"></div>
+  <div class="catalog-content">
+    <div class="catalog-hero">
+      <div>
+        <p class="catalog-eyebrow">Distillery atlas</p>
+        <h1 class="catalog-title">Distilleries</h1>
+        <p class="catalog-subtitle">
+          Explore the distilleries behind the collection and preview their locations.
+        </p>
+        <div class="catalog-stats">
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Total distilleries</span>
+            <span class="catalog-stat__value">{{ total_distilleries }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="catalog-actions">
+        <a class="btn btn-primary catalog-btn" href="/distilleries/globe">Globe view</a>
+        <a class="btn btn-secondary catalog-btn" href="/inventory">Back to inventory</a>
+      </div>
+    </div>
+
+    <div class="catalog-controls">
+      <div class="catalog-search">
+        <label class="catalog-search__label" for="distillery-search">Search distilleries</label>
+        <input
+          id="distillery-search"
+          type="text"
+          class="input input-bordered catalog-search__input"
+          placeholder="Search name, country, or region"
+        />
+        <div class="catalog-search__meta">
+          <span id="distillery-count">{{ total_distilleries }} distilleries</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="distillery-grid" class="catalog-grid">
+      {% for distillery in distilleries %}
+      <div
+        class="catalog-card"
+        data-search="{{ distillery.name }} {{ distillery.country }} {{ distillery.region }}"
+      >
+        <div class="catalog-card__click distillery-card" data-distillery-id="{{ distillery.id }}">
+          <div class="catalog-card__media flex items-center justify-center bg-base-200">
+          {% if distillery.image_path %}
+            <img
+              src="/database_images/{{ distillery.image_path }}"
+              alt="{{ distillery.name }}"
+              class="object-cover w-full h-56 md:h-72"
+            />
+          {% else %}
+            <div class="w-full h-56 md:h-72 flex items-center justify-center text-sm text-gray-400">
+              Image placeholder
+            </div>
+          {% endif %}
+          </div>
+          <div class="catalog-card__body">
+            <div class="catalog-card__header">
+              <h2 class="catalog-card__brand">{{ distillery.name }}</h2>
+            </div>
+            <p class="catalog-card__name">
+              {{ distillery.region or "Region pending" }},
+              {{ distillery.country or "Country pending" }}
+            </p>
+            <div class="catalog-card__meta">
+              {% if distillery.lat and distillery.lon %}
+              <span class="catalog-chip">Location set</span>
+              {% else %}
+              <span class="catalog-chip catalog-chip--muted">Location pending</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<input type="checkbox" id="distillery-modal" class="modal-toggle" />
+<div class="modal">
+  <div class="modal-box relative" id="distillery-modal-content">
+    <p class="text-center">Loading...</p>
+  </div>
+  <label for="distillery-modal" class="modal-backdrop"></label>
+</div>
+
+<script>
+  function applyDistilleryFilters() {
+    const searchInput = document.getElementById("distillery-search");
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const cards = document.querySelectorAll("#distillery-grid .catalog-card");
+    let visibleCount = 0;
+
+    cards.forEach((card) => {
+      const searchText = (card.dataset.search || "").toLowerCase();
+      const shouldShow = !query || searchText.includes(query);
+      card.classList.toggle("hidden", !shouldShow);
+      if (shouldShow) {
+        visibleCount += 1;
+      }
+    });
+
+    const countEl = document.getElementById("distillery-count");
+    if (countEl) {
+      countEl.textContent = `${visibleCount} distilleries`;
+    }
+  }
+
+  async function fetchAndOpenDistilleryModal(distilleryId) {
+    const modalContent = document.getElementById("distillery-modal-content");
+    const modalCheckbox = document.getElementById("distillery-modal");
+
+    modalCheckbox.checked = true;
+    modalContent.innerHTML = `<div class="text-center py-6">Loading...</div>`;
+
+    try {
+      const response = await fetch("/modal/distillery", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ distillery_id: distilleryId }),
+      });
+
+      const html = await response.text();
+      modalContent.innerHTML = html;
+    } catch (err) {
+      console.error("Error loading distillery modal:", err);
+      modalContent.innerHTML = `<div class="text-center text-error py-6">Failed to load distillery information.</div>`;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const cards = document.querySelectorAll(".distillery-card");
+    cards.forEach((card) => {
+      card.addEventListener("click", () => {
+        const distilleryId = card.dataset.distilleryId;
+        fetchAndOpenDistilleryModal(distilleryId);
+      });
+    });
+
+    const searchInput = document.getElementById("distillery-search");
+    if (searchInput) {
+      searchInput.addEventListener("input", applyDistilleryFilters);
+    }
+
+    applyDistilleryFilters();
+  });
+</script>
+
+{% endblock %}

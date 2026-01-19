@@ -303,10 +303,16 @@
   }
 
   .catalog-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 1rem;
-      margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  @media (min-width: 1280px) {
+  .catalog-stats {
+        grid-template-columns: repeat(4, minmax(140px, 1fr));
+    }
   }
 
   .catalog-stat {
@@ -315,6 +321,8 @@
       border: 1px solid var(--catalog-border);
       padding: 0.75rem 1rem;
   }
+
+
 
   .catalog-stat__label {
       display: block;
@@ -555,6 +563,11 @@
       <li>
         <a href="/inventory" class="hover:underline flex items-center">
           <i class="fas fa-boxes text-3xl"></i>
+        </a>
+      </li>
+      <li>
+        <a href="/distilleries" class="hover:underline flex items-center">
+          <i class="fas fa-industry text-3xl"></i>
         </a>
       </li>
       <li>

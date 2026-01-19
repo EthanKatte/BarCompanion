@@ -5,6 +5,7 @@
 {% block content %}
 {% set total_bottles = bottles|length %}
 {% set available_bottles = bottles | selectattr("available", "equalto", 1) | list | length %}
+{% set available_whiskey = bottles | selectattr("available", "equalto", 1) | selectattr("spirit_type", "equalto", "Whiskey") | list | length %}
 {% set unavailable_bottles = total_bottles - available_bottles %}
 
 <div class="catalog-shell">
@@ -16,12 +17,16 @@
         <p class="catalog-eyebrow">Cellar overview</p>
         <h1 class="catalog-title">Inventory</h1>
         <p class="catalog-subtitle">
-          Browse every bottle in the collection, filter by style, and jump straight into a tasting note.
+          Browse every bottle in the collection, filter by style, and jump straight into tasting.
         </p>
         <div class="catalog-stats">
           <div class="catalog-stat">
             <span class="catalog-stat__label">Total bottles</span>
             <span class="catalog-stat__value">{{ total_bottles }}</span>
+          </div>
+          <div class="catalog-stat">
+            <span class="catalog-stat__label">Available Whiskies</span>
+            <span class="catalog-stat__value">{{ available_whiskey }}</span>
           </div>
           <div class="catalog-stat">
             <span class="catalog-stat__label">Available</span>

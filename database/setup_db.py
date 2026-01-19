@@ -2,7 +2,7 @@ import sqlite3
 
 def setup_database():
     # Connect to the SQLite database (or create it if it doesn't exist)
-    conn = sqlite3.connect('./database/bar_companion.db')
+    conn = sqlite3.connect('./bar_companion.db')
 
     # Create a cursor object
     cursor = conn.cursor()
@@ -111,6 +111,27 @@ def setup_database():
             parent TEXT,
             tier TEXT NOT NULL
         )
+        ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS distilleries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            lat REAL,
+            lon REAL,
+            country TEXT,
+            region TEXT,
+            image_path TEXT,
+            description TEXT
+        )
+        ''')
+
+    cursor.execute("PRAGMA table_info(bottles)")
+    bottle_columns = {row[1] for row in cursor.fetchall()}
+    if "distillery_id" not in bottle_columns:
+        cursor.execute('''
+            ALTER TABLE bottles
+            ADD COLUMN distillery_id INTEGER REFERENCES distilleries(id)
         ''')
     
     #name, parent, tier
@@ -223,10 +244,12 @@ def setup_database():
         ("Violet", "Floral", 1),
     ]
 
-    cursor.executemany('''
-    INSERT INTO tasting_notes (name, parent, tier)
-    VALUES (?, ?, ?)
-''', tasting_data)
+    cursor.execute("SELECT COUNT(1) FROM tasting_notes")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany('''
+        INSERT INTO tasting_notes (name, parent, tier)
+        VALUES (?, ?, ?)
+    ''', tasting_data)
 
     # Commit changes and close the connection
     conn.commit()

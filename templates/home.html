@@ -151,7 +151,12 @@
       <a class="home-card" href="/inventory">
         <div class="home-card__icon"><i class="fas fa-layer-group"></i></div>
         <div class="home-card__title">Inventory</div>
-        <div class="home-card__desc">Scan bottles by spirit type, availability, and tasting notes.</div>
+        <div class="home-card__desc">Find bottles by spirit type, availability, and tasting notes.</div>
+      </a>
+      <a class="home-card" href="/distilleries">
+        <div class="home-card__icon"><i class="fas fa-industry"></i></div>
+        <div class="home-card__title">Distilleries</div>
+        <div class="home-card__desc">View Distilleries, Locations, Regions and Brand Origins</div>
       </a>
       <a class="home-card" href="/users">
         <div class="home-card__icon"><i class="fas fa-user-friends"></i></div>
@@ -163,7 +168,7 @@
         <div class="home-card__title">Events</div>
         <div class="home-card__desc">Manage tastings, guest lists, and bottle lineups.</div>
       </a>
-      <a class="home-card" href="/bartender">
+      <a class="home-card" href="/bartender" onclick="return guardBartenderAccess();">
         <div class="home-card__icon"><i class="fas fa-sliders-h"></i></div>
         <div class="home-card__title">Bartender Console</div>
         <div class="home-card__desc">Adjust data, manage tables, and run maintenance tasks.</div>
@@ -171,4 +176,16 @@
     </div>
   </div>
 </div>
+<script>
+  function guardBartenderAccess() {
+    const entry = prompt("Enter bartender password:");
+    if (entry === "default") {
+      return true;
+    }
+    if (entry !== null) {
+      showAlert("Incorrect password.", "error");
+    }
+    return false;
+  }
+</script>
 {% endblock %}

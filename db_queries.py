@@ -64,7 +64,48 @@ def get_all_bottles():
             ]
             bottle_list.append(bottle_dict)
 
-        return bottle_list
+    return bottle_list
+
+def get_all_distilleries():
+    """
+    Return all distilleries in the database as a list of dictionaries.
+    """
+    with create_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM distilleries ORDER BY name")
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+def get_distillery_by_id(distillery_id):
+    """
+    Retrieve a single distillery by its ID.
+    """
+    with create_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM distilleries WHERE id = ?", (distillery_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def get_bottles_by_distillery_id(distillery_id):
+    """
+    Retrieve bottles mapped to a distillery ID.
+    """
+    with create_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, brand, name, abv, spirit_type, subtype, image_path
+            FROM bottles
+            WHERE distillery_id = ?
+            ORDER BY brand, name
+            """,
+            (distillery_id,),
+        )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
 
 def get_random_available_bottle_id():
     with create_connection() as conn:
@@ -140,6 +181,39 @@ def get_bottle_name_by_id(bottle_id):
             return result[0]  # Return the bottle name
         return None  # Return None if no bottle found
 
+def get_unique_brands():
+    """
+    Retrieve a sorted list of unique brand names from the bottles table.
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT brand
+            FROM bottles
+            WHERE brand IS NOT NULL AND TRIM(brand) != ''
+            ORDER BY brand
+        """)
+        return [row[0] for row in cursor.fetchall()]
+
+def get_bottle_names_by_brand(brand, limit=None):
+    """
+    Retrieve bottle names for a given brand.
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        query = """
+            SELECT name
+            FROM bottles
+            WHERE brand = ? AND name IS NOT NULL AND TRIM(name) != ''
+            ORDER BY name
+        """
+        params = [brand]
+        if limit:
+            query += " LIMIT ?"
+            params.append(int(limit))
+        cursor.execute(query, params)
+        return [row[0] for row in cursor.fetchall()]
+
 def add_bottle(brand, name, abv, spirit_type, subtype=None, description=None, image_path=None):
     """Add a new bottle to the database."""
     with create_connection() as conn:
@@ -173,6 +247,100 @@ def update_bottle(bottle_id, **kwargs):
         cursor.execute(f"UPDATE bottles SET {updates} WHERE id = ?", values)
         conn.commit()
     return cursor.rowcount
+
+def update_distillery(distillery_id, **kwargs):
+    """
+    Update a distillery's details in the database.
+
+    :param distillery_id: ID of the distillery to update.
+    :param kwargs: Key-value pairs of columns and their new values.
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        updates = ", ".join([f"{key} = ?" for key in kwargs.keys()])
+        values = list(kwargs.values()) + [distillery_id]
+        cursor.execute(f"UPDATE distilleries SET {updates} WHERE id = ?", values)
+        conn.commit()
+    return cursor.rowcount
+
+def upsert_distillery(
+    name,
+    lat=None,
+    lon=None,
+    country=None,
+    region=None,
+    image_path=None,
+    description=None,
+):
+    if not name or not str(name).strip():
+        return None
+
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, lat, lon, country, region, image_path, description
+            FROM distilleries
+            WHERE name = ?
+            """,
+            (name.strip(),),
+        )
+        row = cursor.fetchone()
+
+        def choose_value(new_value, existing_value):
+            if new_value is None:
+                return existing_value
+            if isinstance(new_value, str):
+                cleaned = new_value.strip()
+                return cleaned if cleaned else existing_value
+            return new_value
+
+        if row:
+            distillery_id = row[0]
+            updated = {
+                "lat": choose_value(lat, row[1]),
+                "lon": choose_value(lon, row[2]),
+                "country": choose_value(country, row[3]),
+                "region": choose_value(region, row[4]),
+                "image_path": choose_value(image_path, row[5]),
+                "description": choose_value(description, row[6]),
+            }
+            cursor.execute(
+                """
+                UPDATE distilleries
+                SET lat = ?, lon = ?, country = ?, region = ?, image_path = ?, description = ?
+                WHERE id = ?
+                """,
+                (
+                    updated["lat"],
+                    updated["lon"],
+                    updated["country"],
+                    updated["region"],
+                    updated["image_path"],
+                    updated["description"],
+                    distillery_id,
+                ),
+            )
+            conn.commit()
+            return distillery_id
+
+        cursor.execute(
+            """
+            INSERT INTO distilleries (name, lat, lon, country, region, image_path, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                name.strip(),
+                lat,
+                lon,
+                country,
+                region,
+                image_path,
+                description,
+            ),
+        )
+        conn.commit()
+        return cursor.lastrowid
 
 #User functions
 

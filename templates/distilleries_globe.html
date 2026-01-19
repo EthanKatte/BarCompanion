@@ -1,0 +1,802 @@
+{% extends "base.html" %}
+
+{% block title %}Distillery Globe{% endblock %}
+
+{% block content %}
+<div class="catalog-content globe-fullscreen">
+  <div class="globe-stage">
+    <div class="globe-overlay">
+      <div class="globe-overlay__card">
+        <p class="globe-overlay__eyebrow">Distillery atlas</p>
+        <h1 class="globe-overlay__title">Globe View</h1>
+        <p class="globe-overlay__subtitle">
+          Spin the globe to explore distilleries by location and tap markers for details.
+        </p>
+      </div>
+      <div class="globe-overlay__actions">
+        <a class="btn btn-primary btn-sm" href="/distilleries">List view</a>
+      </div>
+    </div>
+    <canvas id="distillery-globe" aria-label="Interactive distillery globe"></canvas>
+    <div class="globe-tooltip" id="globe-tooltip" aria-hidden="true"></div>
+  </div>
+  <div class="globe-panel bg-base-100">
+    <div class="globe-panel__header">
+      <h2 class="globe-panel__title">Distillery focus</h2>
+      <p class="globe-panel__subtitle">Select a marker or list item.</p>
+    </div>
+    <div class="globe-panel__details" id="globe-details">
+      <p class="text-sm text-gray-500">No distillery selected yet.</p>
+    </div>
+    <div class="globe-panel__list" id="globe-list"></div>
+  </div>
+</div>
+
+<style>
+  :root {
+    --globe-ocean-1: var(--catalog-panel-strong);
+    --globe-ocean-2: #1f4f73;
+    --globe-ocean-3: #16384f;
+    --globe-ring: rgba(199, 146, 87, 0.45);
+    --globe-grid: rgba(31, 42, 46, 0.12);
+    --globe-land: rgba(46, 132, 82, 0.45);
+    --globe-border: rgba(31, 42, 46, 0.22);
+    --globe-marker: var(--catalog-accent-strong);
+    --globe-marker-glow: rgba(199, 146, 87, 0.35);
+    --globe-marker-selected: var(--catalog-ink);
+    --globe-marker-selected-glow: rgba(31, 42, 46, 0.24);
+    --globe-tooltip-bg: var(--catalog-panel);
+    --globe-tooltip-text: var(--catalog-ink);
+  }
+
+  .globe-fullscreen {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    padding: 0 24px 24px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: 24px;
+    min-height: calc(100vh - 96px);
+    align-items: stretch;
+  }
+
+  .globe-stage {
+    position: relative;
+    height: 100%;
+    min-height: calc(100vh - 140px);
+    border-radius: 24px;
+    background: radial-gradient(
+      120% 120% at 20% 10%,
+      var(--globe-ocean-1) 0%,
+      var(--globe-ocean-2) 55%,
+      var(--globe-ocean-3) 100%
+    );
+    overflow: hidden;
+    border: 1px solid var(--globe-border);
+  }
+
+  #distillery-globe {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .globe-tooltip {
+    position: absolute;
+    pointer-events: none;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: var(--globe-tooltip-bg);
+    color: var(--globe-tooltip-text);
+    font-size: 13px;
+    opacity: 0;
+    transform: translate(-50%, -130%);
+    transition: opacity 120ms ease, transform 120ms ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+
+  .globe-tooltip.is-visible {
+    opacity: 1;
+    transform: translate(-50%, -160%);
+  }
+
+  .globe-overlay {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+    right: 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .globe-overlay__card {
+    background: var(--catalog-panel);
+    border: 1px solid var(--catalog-border);
+    border-radius: 16px;
+    padding: 12px 14px;
+    color: var(--catalog-ink);
+    backdrop-filter: blur(4px);
+    max-width: 340px;
+  }
+
+  .globe-overlay__actions {
+    pointer-events: auto;
+  }
+
+  .globe-overlay__eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--catalog-accent-strong);
+  }
+
+  .globe-overlay__title {
+    font-size: 20px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  .globe-overlay__subtitle {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--catalog-muted);
+  }
+
+  .globe-panel {
+    background: var(--catalog-panel);
+    border: 1px solid var(--catalog-border);
+    border-radius: 16px;
+    padding: 16px 18px;
+    backdrop-filter: blur(4px);
+    color: var(--catalog-ink);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .globe-panel__title {
+    font-size: 18px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .globe-panel__subtitle {
+    margin-top: 4px;
+    color: var(--catalog-muted);
+    font-size: 13px;
+  }
+
+  .globe-panel__details {
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--catalog-border);
+    background: var(--catalog-panel-strong);
+  }
+
+  .globe-panel__list {
+    display: grid;
+    gap: 10px;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .globe-panel__item {
+    display: grid;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--catalog-border);
+    background: var(--catalog-panel-strong);
+    text-align: left;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    transition: border-color 140ms ease, background 140ms ease;
+  }
+
+  .globe-panel__item:hover {
+    border-color: var(--catalog-accent);
+    background: #fffaf3;
+  }
+
+  .globe-panel__item-title {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .globe-panel__item-meta {
+    font-size: 12px;
+    color: var(--catalog-muted);
+  }
+
+  @media (max-width: 960px) {
+    .globe-fullscreen {
+      grid-template-columns: 1fr;
+      padding: 0 16px 24px;
+      min-height: auto;
+    }
+
+    .globe-stage {
+      min-height: 60vh;
+    }
+
+    .globe-overlay {
+      left: 12px;
+      right: 12px;
+    }
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script>
+  const WORLD_ATLAS_URL =
+    "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+
+  const distilleries = {{ distilleries | tojson }};
+  const globeDistilleries = distilleries
+    .filter((distillery) => distillery.lat && distillery.lon)
+    .map((distillery) => ({
+      ...distillery,
+      lat: parseFloat(distillery.lat),
+      lon: parseFloat(distillery.lon),
+    }));
+
+  const canvas = document.getElementById("distillery-globe");
+  const ctx = canvas.getContext("2d");
+  const tooltip = document.getElementById("globe-tooltip");
+  const list = document.getElementById("globe-list");
+  const details = document.getElementById("globe-details");
+  let countriesGeo = null;
+  let bordersGeo = null;
+  const theme = getGlobeTheme();
+
+  const state = {
+    width: 0,
+    height: 0,
+    centerX: 0,
+    centerY: 0,
+    radius: 0,
+    rotLat: 0.1,
+    rotLon: -0.8,
+    dragging: false,
+    lastX: 0,
+    lastY: 0,
+    zoom: 1,
+  };
+
+  let projectedMarkers = [];
+  let selectedId = null;
+  let lastTime = 0;
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function getThemeValue(variable, fallback) {
+    const value = getComputedStyle(document.documentElement)
+      .getPropertyValue(variable)
+      .trim();
+    return value || fallback;
+  }
+
+  function getGlobeTheme() {
+    return {
+      ocean1: getThemeValue("--globe-ocean-1", "#f1e7db"),
+      ocean2: getThemeValue("--globe-ocean-2", "#f9f6f1"),
+      ocean3: getThemeValue("--globe-ocean-3", "#e7d6c5"),
+      ring: getThemeValue("--globe-ring", "rgba(199, 146, 87, 0.45)"),
+      grid: getThemeValue("--globe-grid", "rgba(31, 42, 46, 0.12)"),
+      land: getThemeValue("--globe-land", "rgba(31, 42, 46, 0.18)"),
+      border: getThemeValue("--globe-border", "rgba(31, 42, 46, 0.22)"),
+      marker: getThemeValue("--globe-marker", "#9c4e1b"),
+      markerGlow: getThemeValue("--globe-marker-glow", "rgba(199, 146, 87, 0.35)"),
+      markerSelected: getThemeValue("--globe-marker-selected", "#1f2a2e"),
+      markerSelectedGlow: getThemeValue("--globe-marker-selected-glow", "rgba(31, 42, 46, 0.24)"),
+    };
+  }
+
+  function toRad(deg) {
+    return (deg * Math.PI) / 180;
+  }
+
+  function latLonToVector(lat, lon) {
+    const latRad = toRad(lat);
+    const lonRad = toRad(lon);
+    return {
+      x: Math.cos(latRad) * Math.sin(lonRad),
+      y: Math.sin(latRad),
+      z: Math.cos(latRad) * Math.cos(lonRad),
+    };
+  }
+
+  function rotateY(v, angle) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return {
+      x: v.x * cos + v.z * sin,
+      y: v.y,
+      z: -v.x * sin + v.z * cos,
+    };
+  }
+
+  function rotateX(v, angle) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return {
+      x: v.x,
+      y: v.y * cos - v.z * sin,
+      z: v.y * sin + v.z * cos,
+    };
+  }
+
+  function project(lat, lon) {
+    let v = latLonToVector(lat, lon);
+    v = rotateY(v, state.rotLon);
+    v = rotateX(v, state.rotLat);
+    return {
+      x: state.centerX + v.x * state.radius,
+      y: state.centerY - v.y * state.radius,
+      z: v.z,
+      visible: v.z > 0,
+    };
+  }
+
+  function resize() {
+    const dpr = window.devicePixelRatio || 1;
+    state.width = canvas.parentElement.clientWidth;
+    state.height = canvas.parentElement.clientHeight;
+    canvas.width = state.width * dpr;
+    canvas.height = state.height * dpr;
+    canvas.style.width = `${state.width}px`;
+    canvas.style.height = `${state.height}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    state.centerX = state.width / 2;
+    state.centerY = state.height / 2;
+    state.radius = Math.min(state.width, state.height) * 0.38 * state.zoom;
+  }
+
+  function drawGlobe() {
+    const gradient = ctx.createRadialGradient(
+      state.centerX - state.radius * 0.4,
+      state.centerY - state.radius * 0.4,
+      state.radius * 0.2,
+      state.centerX,
+      state.centerY,
+      state.radius * 1.2
+    );
+    gradient.addColorStop(0, theme.ocean1);
+    gradient.addColorStop(0.55, theme.ocean2);
+    gradient.addColorStop(1, theme.ocean3);
+
+    ctx.beginPath();
+    ctx.arc(state.centerX, state.centerY, state.radius, 0, Math.PI * 2);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(state.centerX, state.centerY, state.radius + 1.5, 0, Math.PI * 2);
+    ctx.strokeStyle = theme.ring;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function strokeRing(ring) {
+    let started = false;
+    ctx.beginPath();
+
+    for (const [lon, lat] of ring) {
+      const point = project(lat, lon);
+      if (!point.visible) {
+        started = false;
+        continue;
+      }
+      if (!started) {
+        ctx.moveTo(point.x, point.y);
+        started = true;
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    }
+
+    if (started) {
+      ctx.stroke();
+    }
+  }
+
+  function fillRing(ring) {
+    let started = false;
+    ctx.beginPath();
+
+    for (const [lon, lat] of ring) {
+      const point = project(lat, lon);
+      if (!point.visible) {
+        started = false;
+        continue;
+      }
+      if (!started) {
+        ctx.moveTo(point.x, point.y);
+        started = true;
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    }
+
+    if (started) {
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function strokeLine(line) {
+    let started = false;
+    ctx.beginPath();
+
+    for (const [lon, lat] of line) {
+      const point = project(lat, lon);
+      if (!point.visible) {
+        started = false;
+        continue;
+      }
+      if (!started) {
+        ctx.moveTo(point.x, point.y);
+        started = true;
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    }
+
+    if (started) {
+      ctx.stroke();
+    }
+  }
+
+  function drawLand() {
+    if (!countriesGeo) {
+      return;
+    }
+
+    ctx.save();
+    ctx.fillStyle = theme.land;
+    ctx.strokeStyle = theme.land;
+    ctx.lineWidth = 1;
+
+    for (const feature of countriesGeo.features) {
+      const geometry = feature.geometry;
+      if (geometry.type === "Polygon") {
+        for (const ring of geometry.coordinates) {
+          fillRing(ring);
+        }
+      } else if (geometry.type === "MultiPolygon") {
+        for (const polygon of geometry.coordinates) {
+          for (const ring of polygon) {
+            fillRing(ring);
+          }
+        }
+      }
+    }
+
+    for (const feature of countriesGeo.features) {
+      const geometry = feature.geometry;
+      if (geometry.type === "Polygon") {
+        for (const ring of geometry.coordinates) {
+          strokeRing(ring);
+        }
+      } else if (geometry.type === "MultiPolygon") {
+        for (const polygon of geometry.coordinates) {
+          for (const ring of polygon) {
+            strokeRing(ring);
+          }
+        }
+      }
+    }
+
+    if (bordersGeo && bordersGeo.coordinates) {
+      ctx.strokeStyle = theme.border;
+      ctx.lineWidth = 0.8;
+      for (const line of bordersGeo.coordinates) {
+        strokeLine(line);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function drawGrid() {
+    ctx.save();
+    ctx.strokeStyle = theme.grid;
+    ctx.lineWidth = 1;
+    for (let lat = -60; lat <= 60; lat += 30) {
+      drawLatitude(lat);
+    }
+    for (let lon = -150; lon <= 180; lon += 30) {
+      drawLongitude(lon);
+    }
+    ctx.restore();
+  }
+
+  function drawLatitude(lat) {
+    ctx.beginPath();
+    let started = false;
+    for (let lon = -180; lon <= 180; lon += 4) {
+      const point = project(lat, lon);
+      if (point.visible) {
+        if (!started) {
+          ctx.moveTo(point.x, point.y);
+          started = true;
+        } else {
+          ctx.lineTo(point.x, point.y);
+        }
+      } else {
+        started = false;
+      }
+    }
+    ctx.stroke();
+  }
+
+  function drawLongitude(lon) {
+    ctx.beginPath();
+    let started = false;
+    for (let lat = -90; lat <= 90; lat += 4) {
+      const point = project(lat, lon);
+      if (point.visible) {
+        if (!started) {
+          ctx.moveTo(point.x, point.y);
+          started = true;
+        } else {
+          ctx.lineTo(point.x, point.y);
+        }
+      } else {
+        started = false;
+      }
+    }
+    ctx.stroke();
+  }
+
+  function drawMarkers(time) {
+    projectedMarkers = [];
+    globeDistilleries.forEach((distillery, index) => {
+      const point = project(distillery.lat, distillery.lon);
+      projectedMarkers.push({ ...distillery, ...point });
+      if (!point.visible) {
+        return;
+      }
+
+      const pulse = 0.6 + 0.4 * Math.sin(time * 0.004 + index);
+      const size = 4 + point.z * 6;
+      const isSelected = distillery.id === selectedId;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, size * 2.2 * pulse, 0, Math.PI * 2);
+      ctx.fillStyle = isSelected ? theme.markerSelectedGlow : theme.markerGlow;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, size * (isSelected ? 1.4 : 1), 0, Math.PI * 2);
+      ctx.fillStyle = isSelected ? theme.markerSelected : theme.marker;
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function render(time) {
+    const delta = time - lastTime;
+    lastTime = time;
+
+    //if (!state.dragging) {
+    //  state.rotLon += delta * 0.00003;
+    //}
+
+    ctx.clearRect(0, 0, state.width, state.height);
+    drawGlobe();
+    drawLand();
+    drawGrid();
+    drawMarkers(time);
+    requestAnimationFrame(render);
+  }
+
+  function showTooltip(marker, x, y) {
+    tooltip.textContent = `${marker.name} - ${marker.region || "Region pending"}`;
+    tooltip.style.left = `${x}px`;
+    tooltip.style.top = `${y}px`;
+    tooltip.classList.add("is-visible");
+    tooltip.setAttribute("aria-hidden", "false");
+  }
+
+  function hideTooltip() {
+    tooltip.classList.remove("is-visible");
+    tooltip.setAttribute("aria-hidden", "true");
+  }
+
+  function handleHover(event) {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    let nearest = null;
+    let nearestDist = 18;
+
+    projectedMarkers.forEach((marker) => {
+      if (!marker.visible) {
+        return;
+      }
+      const dx = marker.x - x;
+      const dy = marker.y - y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < nearestDist) {
+        nearest = marker;
+        nearestDist = dist;
+      }
+    });
+
+    if (nearest) {
+      showTooltip(nearest, nearest.x, nearest.y);
+    } else {
+      hideTooltip();
+    }
+  }
+
+  function updateDetails(distillery) {
+    if (!distillery) {
+      details.innerHTML = "<p class=\"text-sm text-gray-500\">No distillery selected yet.</p>";
+      return;
+    }
+
+    const location = `${distillery.region || "Region pending"}, ${distillery.country || "Country pending"}`;
+    const description = distillery.description || "Description pending.";
+    details.innerHTML = `
+      <div class="space-y-2">
+        <div class="text-sm uppercase tracking-[0.2em] text-gray-500">Focus</div>
+        <div class="text-lg font-semibold">${distillery.name}</div>
+        <div class="text-sm text-gray-600">${location}</div>
+        <p class="text-sm text-gray-600">${description}</p>
+      </div>
+    `;
+  }
+
+  function bindList() {
+    if (!list) {
+      return;
+    }
+
+    if (!globeDistilleries.length) {
+      list.innerHTML = "<p class=\"text-sm text-gray-400\">No distilleries with coordinates.</p>";
+      return;
+    }
+
+    list.innerHTML = globeDistilleries
+      .map(
+        (distillery) => `
+        <button class="globe-panel__item" type="button" data-id="${distillery.id}">
+          <span class="globe-panel__item-title">${distillery.name}</span>
+          <span class="globe-panel__item-meta">${distillery.region || "Region pending"}, ${distillery.country || "Country pending"}</span>
+        </button>
+      `
+      )
+      .join("");
+
+    list.addEventListener("click", (event) => {
+      const item = event.target.closest(".globe-panel__item");
+      if (!item) {
+        return;
+      }
+      const distillery = globeDistilleries.find((entry) => String(entry.id) === item.dataset.id);
+      if (!distillery) {
+        return;
+      }
+      selectedId = distillery.id;
+      state.rotLat = clamp(-toRad(distillery.lat), -1.2, 1.2);
+      state.rotLon = -toRad(distillery.lon);
+      updateDetails(distillery);
+    });
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    state.dragging = true;
+    state.lastX = event.clientX;
+    state.lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!state.dragging) {
+      handleHover(event);
+      return;
+    }
+    const dx = event.clientX - state.lastX;
+    const dy = event.clientY - state.lastY;
+    state.lastX = event.clientX;
+    state.lastY = event.clientY;
+
+    state.rotLon += dx * 0.005;
+    state.rotLat = clamp(state.rotLat + dy * 0.005, -1.2, 1.2);
+  });
+
+  canvas.addEventListener("pointerup", () => {
+    state.dragging = false;
+  });
+
+  canvas.addEventListener("pointerleave", () => {
+    state.dragging = false;
+    hideTooltip();
+  });
+
+  canvas.addEventListener("click", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    let nearest = null;
+    let nearestDist = 18;
+
+    projectedMarkers.forEach((marker) => {
+      if (!marker.visible) {
+        return;
+      }
+      const dx = marker.x - x;
+      const dy = marker.y - y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < nearestDist) {
+        nearest = marker;
+        nearestDist = dist;
+      }
+    });
+
+    if (nearest) {
+      selectedId = nearest.id;
+      updateDetails(nearest);
+    }
+  });
+
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      const delta = Math.sign(event.deltaY) * -0.06;
+      state.zoom = clamp(state.zoom + delta, 0.7, 4);
+      resize();
+    },
+    { passive: false }
+  );
+
+  window.addEventListener("resize", resize);
+
+  async function loadWorld() {
+    if (typeof topojson === "undefined") {
+      console.warn("TopoJSON client not available, skipping land overlay.");
+      return;
+    }
+
+    try {
+      const response = await fetch(WORLD_ATLAS_URL);
+      if (!response.ok) {
+        throw new Error(`World atlas fetch failed: ${response.status}`);
+      }
+
+      const topo = await response.json();
+      const countriesObj = topo.objects && topo.objects.countries;
+      if (!countriesObj) {
+        throw new Error("World atlas data missing countries object.");
+      }
+
+      countriesGeo = topojson.feature(topo, countriesObj);
+      bordersGeo = topojson.mesh(topo, countriesObj, (a, b) => a !== b);
+    } catch (error) {
+      console.error("Failed to load world atlas data:", error);
+    }
+  }
+
+  updateDetails(null);
+  bindList();
+  resize();
+  loadWorld();
+  requestAnimationFrame(render);
+</script>
+
+{% endblock %}

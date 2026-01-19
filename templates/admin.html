@@ -1,97 +1,172 @@
 {% extends "base.html" %}
 
+{% block title %}Admin - John's bahr{% endblock %}
+
 {% block content %}
-<div class="container mx-auto py-8">
-  <h1 class="text-3xl font-bold mb-6">Admin Dashboard</h1>
-      
-  <!-- Top-right buttons -->
-  <div class="absolute top-6 right-6 flex flex-wrap gap-4 mt-[40px]">
-    <!-- Admin Button -->
-    <a href="./fuckoff" class="btn btn-primary flex items-center">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 object-contain" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h11M9 21V3m0 18h12" />
-      </svg>
-      Admin
-    </a>
+<div class="catalog-shell">
+  <div class="catalog-orb catalog-orb--a"></div>
+  <div class="catalog-orb catalog-orb--b"></div>
+  <div class="catalog-content">
+    <div class="catalog-hero">
+      <div>
+        <p class="catalog-eyebrow">System tools</p>
+        <h1 class="catalog-title">Admin Dashboard</h1>
+        <p class="catalog-subtitle">
+          Manage data, refresh descriptions, and control availability without leaving the console.
+        </p>
+      </div>
+      <div class="catalog-actions">
+        <a href="/bartender" class="btn btn-primary catalog-btn">Bartender Console</a>
+        <a href="/expert_notes" class="btn btn-secondary catalog-btn">Expert Notes</a>
+        <button type="button" class="btn btn-secondary catalog-btn" onclick="refreshData('notes')">
+          Update Expert Notes
+        </button>
+        <button type="button" class="btn btn-secondary catalog-btn" onclick="refreshData('descriptions')">
+          Update Descriptions
+        </button>
+      </div>
+    </div>
 
-    <!-- Expert Notes Button -->
-    <a href="./expert_notes" class="btn btn-secondary flex items-center">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 object-contain" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-9-8h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2z" />
-      </svg>
-      Expert Notes
-    </a>
+    <div class="tabs tabs-boxed mt-6">
+      <button class="tab tab-active" type="button" data-tab-target="admin-tools">Admin Tools</button>
+      <button class="tab" type="button" data-tab-target="distillery-images">Distillery Images</button>
+    </div>
 
-    <!-- Update Expert Notes Button -->
-    <button type="button" class="btn btn-secondary flex items-center" onclick="refreshData('notes')">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 object-contain" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-9-8h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2z" />
-      </svg>
-      Update Expert Notes
-    </button>
+    <div id="admin-tools" class="tab-panel mt-6">
+      <div class="catalog-grid">
+      <div class="catalog-card">
+        <div class="catalog-card__body">
+          <div class="catalog-card__header">
+            <h2 class="catalog-card__brand">Remove Entry</h2>
+          </div>
+          <p class="catalog-card__name">Delete records by table and record ID.</p>
+          <div class="form-control mt-4">
+            <label class="label">
+              <span class="label-text">Table Name</span>
+            </label>
+            <input id="table-name" type="text" placeholder="e.g., bottles" class="input input-bordered" />
+          </div>
+          <div class="form-control mt-4">
+            <label class="label">
+              <span class="label-text">Record ID</span>
+            </label>
+            <input id="record-id" type="number" placeholder="Enter record ID" class="input input-bordered" />
+          </div>
+          <button class="btn btn-error mt-4" type="button" onclick="removeEntry()">Remove Entry</button>
+        </div>
+      </div>
 
-    <!-- Update Descriptions Button -->
-    <button type="button" class="btn btn-secondary flex items-center" onclick="refreshData('descriptions')">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 mr-2 object-contain" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-9-8h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V8a2 2 0 012-2z" />
-      </svg>
-      Update Descriptions
-    </button>
+      <div class="catalog-card">
+        <div class="catalog-card__body">
+          <div class="catalog-card__header">
+            <h2 class="catalog-card__brand">Make Bottle Unavailable</h2>
+          </div>
+          <p class="catalog-card__name">Mark a bottle as temporarily unavailable.</p>
+          <div class="form-control mt-4">
+            <label class="label">
+              <span class="label-text">Bottle ID</span>
+            </label>
+            <input id="unavailable-bottle-id" type="number" placeholder="Enter bottle ID" class="input input-bordered" />
+          </div>
+          <button class="btn btn-warning mt-4" type="button" onclick="makeUnavailable()">Make Unavailable</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="catalog-content">
+      {% for table, rows in tables_data.items() %}
+      <details class="catalog-card">
+        <summary class="catalog-card__body cursor-pointer">
+          <div class="catalog-card__header">
+            <h2 class="catalog-card__brand">{{ table|capitalize }} Table</h2>
+            <span class="catalog-card__abv">{{ rows|length }} rows</span>
+          </div>
+        </summary>
+        <div class="catalog-card__body pt-0">
+          <div class="overflow-x-auto mt-2">
+            <table class="table table-zebra w-full">
+              <thead>
+                <tr>
+                  {% if rows %}
+                  {% for col in rows[0].keys() %}
+                  <th>{{ col }}</th>
+                  {% endfor %}
+                  {% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                <tr>
+                  {% for col, value in row.items() %}
+                  <td>{{ value }}</td>
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
   </div>
 
-  <!-- Manual Removal Form -->
-  <h2 class="text-2xl font-bold mb-6">Remove Entry</h2>
-  <div class="form-control mb-6">
-    <label class="label">
-      <span class="label-text">Table Name</span>
-    </label>
-    <input id="table-name" type="text" placeholder="Enter table name (e.g., bottles)" class="input input-bordered" />
+  <div id="distillery-images" class="tab-panel mt-6 hidden">
+    <div class="catalog-grid">
+      {% for distillery in distilleries %}
+      <div class="catalog-card">
+        <div class="catalog-card__body">
+          <div class="catalog-card__header">
+            <h2 class="catalog-card__brand">{{ distillery.name }}</h2>
+            {% if distillery.image_path %}
+              <span class="catalog-chip">Image set</span>
+            {% else %}
+              <span class="catalog-chip catalog-chip--muted">No image</span>
+            {% endif %}
+          </div>
+          <div class="flex flex-col gap-4">
+            <div class="flex items-start gap-4">
+              <div class="w-28 h-28 rounded-xl bg-base-200 flex items-center justify-center overflow-hidden">
+                <img
+                  id="distillery-image-{{ distillery.id }}"
+                  src="{% if distillery.image_path %}/database_images/{{ distillery.image_path }}{% endif %}"
+                  alt="{{ distillery.name }}"
+                  class="object-contain w-full h-full{% if not distillery.image_path %} hidden{% endif %}"
+                />
+                <span
+                  id="distillery-placeholder-{{ distillery.id }}"
+                  class="text-xs text-gray-400{% if distillery.image_path %} hidden{% endif %}"
+                >
+                  No image
+                </span>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm text-gray-500">
+                  {{ distillery.region or "Region pending" }}, {{ distillery.country or "Country pending" }}
+                </p>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-sm mt-3 distillery-image-search"
+                  data-distillery-id="{{ distillery.id }}"
+                  data-distillery-name="{{ distillery.name }}"
+                >
+                  Find Images
+                </button>
+              </div>
+            </div>
+            <div
+              id="distillery-image-options-{{ distillery.id }}"
+              class="grid grid-cols-3 gap-3"
+            ></div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
-  <div class="form-control mb-6">
-    <label class="label">
-      <span class="label-text">Record ID</span>
-    </label>
-    <input id="record-id" type="number" placeholder="Enter record ID" class="input input-bordered" />
   </div>
-  <button class="btn btn-error" onclick="removeEntry()">Remove Entry</button>
-
-  <!-- Make Bottle Unavailable Form -->
-  <h2 class="text-2xl font-bold mb-6">Make Bottle Unavailable</h2>
-  <div class="form-control mb-6">
-    <label class="label">
-      <span class="label-text">Bottle ID</span>
-    </label>
-    <input id="unavailable-bottle-id" type="number" placeholder="Enter bottle ID" class="input input-bordered" />
-  </div>
-  <button class="btn btn-warning" onclick="makeUnavailable()">Make Unavailable</button>
-
-
-  {% for table, rows in tables_data.items() %}
-  <h2 class="text-2xl font-bold mb-4">{{ table|capitalize }} Table</h2>
-  <div class="overflow-x-auto mb-8">
-    <table class="table table-zebra w-full border border-gray-500 rounded-md p-300 ">
-      <thead>
-        <tr>
-          {% if rows %}
-          {% for col in rows[0].keys() %}
-          <th>{{ col }}</th>
-          {% endfor %}
-          {% endif %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-        <tr>
-          {% for col, value in row.items() %}
-          <td>{{ value }}</td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% endfor %}
 </div>
+
 <script>
     async function refreshData(kind) {
       const limitInput = prompt("Optional limit (blank for all):", "");
@@ -130,7 +205,7 @@
           );
           if (!errorCount) {
             setTimeout(() => {
-              window.location.reload();
+              window.location.reload(); // Refresh the page to reflect changes
             }, 1000);
           }
         } else {
@@ -147,12 +222,12 @@
     async function removeEntry() {
       const table = document.getElementById("table-name").value.trim();
       const id = document.getElementById("record-id").value.trim();
-  
+
       if (!table || !id) {
         showAlert("Table name and record ID are required.", "error");
         return;
       }
-  
+
       try {
         const response = await fetch("/api/remove_entry", {
           method: "POST",
@@ -161,7 +236,7 @@
           },
           body: JSON.stringify({ table, id }),
         });
-  
+
         const result = await response.json();
         if (response.ok) {
           showAlert(result.message, "success");
@@ -209,6 +284,114 @@
       showAlert("An error occurred while updating the bottle.", "error");
     }
   }
+
+  function initAdminTabs() {
+    const tabs = document.querySelectorAll("[data-tab-target]");
+    const panels = document.querySelectorAll(".tab-panel");
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const targetId = tab.dataset.tabTarget;
+        panels.forEach((panel) => {
+          panel.classList.toggle("hidden", panel.id !== targetId);
+        });
+        tabs.forEach((item) => item.classList.remove("tab-active"));
+        tab.classList.add("tab-active");
+      });
+    });
+  }
+
+  async function fetchDistilleryImages(distilleryId, distilleryName) {
+    const url = `/get_images?brand=${encodeURIComponent(distilleryName)}&name="distillery location"`;
+    try {
+      showLoadingOverlay();
+      const response = await fetch(url);
+      const result = await response.json();
+      displayDistilleryImageOptions(distilleryId, result.images || []);
+    } catch (error) {
+      console.error("Error fetching distillery images:", error);
+      showAlert("Failed to fetch distillery images.", "error");
+    } finally {
+      hideLoadingOverlay();
+    }
+  }
+
+  function displayDistilleryImageOptions(distilleryId, images) {
+    const container = document.getElementById(`distillery-image-options-${distilleryId}`);
+    if (!container) {
+      return;
+    }
+    container.innerHTML = "";
+
+    if (!images || !images.length) {
+      container.innerHTML = "<p class=\"text-sm text-gray-500 col-span-3\">No images found.</p>";
+      return;
+    }
+
+    images.forEach((src) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "border border-base-200 rounded-lg p-1 hover:shadow-lg";
+
+      const img = document.createElement("img");
+      img.src = src;
+      img.alt = "Distillery image option";
+      img.loading = "lazy";
+      img.className = "w-full h-auto";
+      button.appendChild(img);
+
+      button.addEventListener("click", async () => {
+        container.querySelectorAll("button").forEach((el) => {
+          el.classList.remove("ring", "ring-primary");
+        });
+        button.classList.add("ring", "ring-primary");
+        await updateDistilleryImage(distilleryId, src);
+      });
+
+      container.appendChild(button);
+    });
+  }
+
+  async function updateDistilleryImage(distilleryId, base64) {
+    try {
+      showLoadingOverlay();
+      const response = await fetch("/api/update_distillery_image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ distillery_id: distilleryId, photo: base64 }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        showAlert(result.error || "Failed to update distillery image.", "error");
+        return;
+      }
+
+      const img = document.getElementById(`distillery-image-${distilleryId}`);
+      const placeholder = document.getElementById(`distillery-placeholder-${distilleryId}`);
+      if (img) {
+        img.src = `/database_images/${result.image_path}`;
+        img.classList.remove("hidden");
+      }
+      if (placeholder) {
+        placeholder.classList.add("hidden");
+      }
+      showAlert("Distillery image updated.", "success");
+    } catch (error) {
+      console.error("Error updating distillery image:", error);
+      showAlert("Failed to update distillery image.", "error");
+    } finally {
+      hideLoadingOverlay();
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    initAdminTabs();
+    document.querySelectorAll(".distillery-image-search").forEach((button) => {
+      button.addEventListener("click", () => {
+        fetchDistilleryImages(button.dataset.distilleryId, button.dataset.distilleryName);
+      });
+    });
+  });
 
   </script>
 {% endblock %}

@@ -4,6 +4,10 @@ from db_queries import (get_all_bottles,
                                 add_bottle, 
                                 remove_bottle, 
                                 get_bottles_from_query, 
+                                get_all_distilleries,
+                                get_distillery_by_id,
+                                get_bottles_by_distillery_id,
+                                update_distillery,
                                 get_all_users_with_reviews, 
                                 add_user, 
                                 get_user_id_by_name,
@@ -139,6 +143,32 @@ def users():
     users = get_all_users_with_reviews()
     return render_template('users.html', users=users)
 
+@app.route('/distilleries', methods=["GET"])
+def distilleries():
+    distilleries = get_all_distilleries()
+    return render_template('distilleries.html', distilleries=distilleries)
+
+@app.route('/distilleries/globe', methods=["GET"])
+def distilleries_globe():
+    distilleries = get_all_distilleries()
+    return render_template('distilleries_globe.html', distilleries=distilleries)
+
+@app.route("/modal/distillery", methods=["POST"])
+def distillery_modal():
+    data = request.get_json()
+    distillery_id = data.get("distillery_id")
+
+    distillery = get_distillery_by_id(distillery_id)
+    if not distillery:
+        return "Distillery not found", 404
+
+    bottles = get_bottles_by_distillery_id(distillery_id)
+    return render_template(
+        "modals/distillery_card_popup.html",
+        distillery=distillery,
+        bottles=bottles,
+    )
+
 @app.route("/events", methods=["GET"])
 def events():
     try:
@@ -200,7 +230,12 @@ def event_client():
 def admin_page():
     try:
         tables_data = get_all_tables_contents()
-        return render_template("admin.html", tables_data=tables_data)
+        distilleries = get_all_distilleries()
+        return render_template(
+            "admin.html",
+            tables_data=tables_data,
+            distilleries=distilleries,
+        )
     except Exception as e:
         return f"An error occurred: {str(e)}", 500
 
@@ -440,6 +475,46 @@ def api_add_user():
         return jsonify({"error": f"Missing required field: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+@app.route('/api/update_distillery_image', methods=["POST"])
+def api_update_distillery_image():
+    UPLOAD_FOLDER = "./database_images/distilleries"
+    data = request.json
+    distillery_id = data.get("distillery_id")
+    base64_image = data.get("photo")
+
+    if not distillery_id or not base64_image:
+        return jsonify({"error": "Distillery ID and image are required."}), 400
+
+    distillery = get_distillery_by_id(distillery_id)
+    if not distillery:
+        return jsonify({"error": "Distillery not found."}), 404
+
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+    name_slug = distillery["name"].replace(" ", "_").replace("/", "_")
+    extension = "png"
+    if base64_image.startswith("data:image/"):
+        header = base64_image.split(",", 1)[0]
+        if "jpeg" in header or "jpg" in header:
+            extension = "jpg"
+        elif "webp" in header:
+            extension = "webp"
+        elif "gif" in header:
+            extension = "gif"
+
+    image_filename = f"{name_slug}.{extension}"
+    image_filepath = os.path.join(UPLOAD_FOLDER, image_filename)
+
+    try:
+        image_data = base64_image.split(",", 1)[1]
+        with open(image_filepath, "wb") as image_file:
+            image_file.write(base64.b64decode(image_data))
+    except Exception as e:
+        return jsonify({"error": f"Failed to save image: {str(e)}"}), 500
+
+    update_distillery(distillery_id, image_path=f"distilleries/{image_filename}")
+    return jsonify({"message": "Distillery image updated.", "image_path": f"distilleries/{image_filename}"}), 200
 
 def add_notes_to_review(notes, review_id):
     """
