@@ -82,6 +82,20 @@
         <option value="desc">Descending</option>
       </select>
     </div>
+
+    <div class="form-control mt-2">
+      <label class="label cursor-pointer gap-3">
+        <span class="label-text">Show only special</span>
+        <input type="checkbox" id="filter-special" class="checkbox checkbox-primary" />
+      </label>
+    </div>
+
+    <div class="form-control mt-2">
+      <label class="label cursor-pointer gap-3">
+        <span class="label-text">Hide special</span>
+        <input type="checkbox" id="filter-hide-special" class="checkbox checkbox-primary" />
+      </label>
+    </div>
   
     <!-- Apply Filters Button -->
     <button class="btn btn-primary mt-4" onclick="applyFilters()">Apply Filters</button>
@@ -92,6 +106,8 @@
           const subtype = document.getElementById("filter-subtype").value;
           const sortBy = document.getElementById("sort-by").value;
           const order = document.getElementById("order").value;
+          const specialOnly = document.getElementById("filter-special").checked;
+          const hideSpecial = document.getElementById("filter-hide-special").checked;
       
           // Build query parameters
           const params = new URLSearchParams({
@@ -100,6 +116,8 @@
             subtype: subtype || "",
             sort_by: sortBy,
             order: order,
+            special: specialOnly ? "1" : "",
+            hide_special: hideSpecial ? "1" : "",
           });
       
           // Redirect to the inventory endpoint with query parameters
@@ -128,6 +146,21 @@
     removeDuplicateOptions("filter-brand");
     removeDuplicateOptions("filter-type");
     removeDuplicateOptions("filter-subtype");
+
+    const specialOnly = document.getElementById("filter-special");
+    const hideSpecial = document.getElementById("filter-hide-special");
+    if (specialOnly && hideSpecial) {
+      specialOnly.addEventListener("change", () => {
+        if (specialOnly.checked) {
+          hideSpecial.checked = false;
+        }
+      });
+      hideSpecial.addEventListener("change", () => {
+        if (hideSpecial.checked) {
+          specialOnly.checked = false;
+        }
+      });
+    }
   });
 
 

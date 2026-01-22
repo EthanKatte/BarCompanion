@@ -18,6 +18,7 @@ def setup_database():
         subtype TEXT,
         description TEXT,
         available BOOL DEFAULT 1 CHECK (available IN (0, 1)),
+        special BOOL DEFAULT 0 CHECK (special IN (0, 1)),
         image_path TEXT
     )
     ''')
@@ -132,6 +133,11 @@ def setup_database():
         cursor.execute('''
             ALTER TABLE bottles
             ADD COLUMN distillery_id INTEGER REFERENCES distilleries(id)
+        ''')
+    if "special" not in bottle_columns:
+        cursor.execute('''
+            ALTER TABLE bottles
+            ADD COLUMN special BOOL DEFAULT 0 CHECK (special IN (0, 1))
         ''')
     
     #name, parent, tier
@@ -256,3 +262,4 @@ def setup_database():
     conn.close()
 
     print("Database and tables created successfully!")
+

@@ -97,6 +97,9 @@
             {% else %}
               <span class="catalog-badge catalog-badge--unavailable">Unavailable</span>
             {% endif %}
+            {% if bottle.special == 1 %}
+              <span class="catalog-badge catalog-badge--special mt-8">Special</span>
+            {% endif %}
           </div>
           <div class="catalog-card__body">
             <div class="catalog-card__header">
@@ -105,6 +108,9 @@
             </div>
             <p class="catalog-card__name">{{ bottle.name }}</p>
             <div class="catalog-card__meta">
+              {% if bottle.special == 1 %}
+              <span class="catalog-chip">Special</span>
+              {% endif %}
               <span class="catalog-chip">{{ bottle.spirit_type }}</span>
               {% if bottle.subtype %}
               <span class="catalog-chip catalog-chip--muted">{{ bottle.subtype }}</span>

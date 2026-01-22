@@ -239,7 +239,12 @@ def test_populate_distilleries_from_brands(
     dry_run: bool = True,
     secrets_path: str = DEFAULT_SECRETS_PATH,
 ) -> list[Dict[str, Any]]:
-    from db_queries import get_unique_brands, get_bottle_names_by_brand, upsert_distillery
+    from db_queries import (
+        get_unique_brands,
+        get_bottle_names_by_brand,
+        upsert_distillery,
+        update_bottles_distillery_by_brand,
+    )
 
     brands = get_unique_brands()
     if limit:
@@ -247,7 +252,7 @@ def test_populate_distilleries_from_brands(
 
     results = []
     for brand in brands:
-        bottle_names = get_bottle_names_by_brand(brand, limit=8)
+        bottle_names = get_bottle_names_by_brand(brand)
         distilleries = query_distilleries_for_brand(
             brand, bottle_names=bottle_names, secrets_path=secrets_path
         )
@@ -271,6 +276,7 @@ def test_populate_distilleries_from_brands(
                     region=info.get("region"),
                     description=info.get("description"),
                 )
+                update_bottles_distillery_by_brand(brand, distillery_id)
             else:
                 distillery_id = None
 

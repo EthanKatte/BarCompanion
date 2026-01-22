@@ -113,13 +113,14 @@ def get_random_available_bottle_id():
         cursor = conn.cursor()
 
         # Query all available bottles
-        cursor.execute("SELECT id FROM bottles WHERE available = 1")
+        cursor.execute("SELECT id FROM bottles WHERE available = 1 AND special = 0")
         bottles = cursor.fetchall()
 
         if not bottles:
             return jsonify({"error": "No available bottles found"}), 404
 
         # Select a random bottle
+        print(bottles)
         random_bottle = random.choice(bottles)
         return random_bottle
 
@@ -181,18 +182,32 @@ def get_bottle_name_by_id(bottle_id):
             return result[0]  # Return the bottle name
         return None  # Return None if no bottle found
 
-def get_unique_brands():
+def get_unique_brands(no_distilleries=True):
     """
     Retrieve a sorted list of unique brand names from the bottles table.
     """
     with create_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            SELECT DISTINCT brand
-            FROM bottles
-            WHERE brand IS NOT NULL AND TRIM(brand) != ''
-            ORDER BY brand
-        """)
+        if no_distilleries:
+            cursor.execute("""
+                SELECT DISTINCT b.brand
+                FROM bottles b
+                WHERE b.brand IS NOT NULL AND TRIM(b.brand) != ''
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM bottles b2
+                    WHERE b2.brand = b.brand
+                      AND b2.distillery_id IS NOT NULL
+                  )
+                ORDER BY b.brand
+            """)
+        else:
+            cursor.execute("""
+                SELECT DISTINCT brand
+                FROM bottles
+                WHERE brand IS NOT NULL AND TRIM(brand) != ''
+                ORDER BY brand
+            """)
         return [row[0] for row in cursor.fetchall()]
 
 def get_bottle_names_by_brand(brand, limit=None):
@@ -214,14 +229,40 @@ def get_bottle_names_by_brand(brand, limit=None):
         cursor.execute(query, params)
         return [row[0] for row in cursor.fetchall()]
 
-def add_bottle(brand, name, abv, spirit_type, subtype=None, description=None, image_path=None):
+def add_bottle(
+    brand,
+    name,
+    abv,
+    spirit_type,
+    subtype=None,
+    description=None,
+    image_path=None,
+    distillery_id=None,
+    available=1,
+    special=0,
+):
     """Add a new bottle to the database."""
     with create_connection() as conn:
         cursor = conn.cursor()
+
+        if distillery_id is None and brand:
+            cursor.execute(
+                """
+                SELECT distillery_id
+                FROM bottles
+                WHERE brand = ? AND distillery_id IS NOT NULL
+                LIMIT 1
+                """,
+                (brand,),
+            )
+            row = cursor.fetchone()
+            if row:
+                distillery_id = row[0]
+
         cursor.execute('''
-            INSERT INTO bottles (brand, name, abv, spirit_type, subtype, description, image_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (brand, name, abv, spirit_type.capitalize(), subtype, description, image_path))
+            INSERT INTO bottles (brand, name, abv, spirit_type, subtype, description, available, image_path, distillery_id, special)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (brand, name, abv, spirit_type.capitalize(), subtype, description, available, image_path, distillery_id, special))
         conn.commit()
     return cursor.lastrowid
 
@@ -244,8 +285,10 @@ def update_bottle(bottle_id, **kwargs):
         cursor = conn.cursor()
         updates = ", ".join([f"{key} = ?" for key in kwargs.keys()])
         values = list(kwargs.values()) + [bottle_id]
+        print(f"UPDATE bottles SET {updates} WHERE id = ?", values)
         cursor.execute(f"UPDATE bottles SET {updates} WHERE id = ?", values)
         conn.commit()
+    print("comit")
     return cursor.rowcount
 
 def update_distillery(distillery_id, **kwargs):
@@ -341,6 +384,26 @@ def upsert_distillery(
         )
         conn.commit()
         return cursor.lastrowid
+
+def update_bottles_distillery_by_brand(brand, distillery_id):
+    """
+    Set distillery_id for all bottles with the given brand.
+    """
+    if not brand or distillery_id is None:
+        return 0
+
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE bottles
+            SET distillery_id = ?
+            WHERE brand = ?
+            """,
+            (distillery_id, brand),
+        )
+        conn.commit()
+        return cursor.rowcount
 
 #User functions
 

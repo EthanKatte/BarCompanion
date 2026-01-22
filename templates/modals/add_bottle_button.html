@@ -112,6 +112,20 @@
         <textarea name="description" class="textarea textarea-bordered"></textarea>
       </div>
 
+      <div class="form-control">
+        <label class="label cursor-pointer gap-3">
+          <span class="label-text">Available</span>
+          <input type="checkbox" name="available" class="checkbox checkbox-primary" checked />
+        </label>
+      </div>
+
+      <div class="form-control">
+        <label class="label cursor-pointer gap-3">
+          <span class="label-text">Special bottle</span>
+          <input type="checkbox" name="special" class="checkbox checkbox-primary" />
+        </label>
+      </div>
+
       <!-- File Upload -->
       <div class="form-control">
         <label class="label">
@@ -201,6 +215,16 @@
     formData.forEach((value, key) => {
       jsonData[key] = value;
     });
+
+    const availableInput = document.querySelector("input[name='available']");
+    if (availableInput) {
+      jsonData.available = availableInput.checked ? "1" : "0";
+    }
+
+    const specialInput = document.querySelector("input[name='special']");
+    if (specialInput) {
+      jsonData.special = specialInput.checked ? "1" : "0";
+    }
 
     if (!jsonData.brand || jsonData.brand.trim() === "") {
       jsonData.brand = jsonData.brand_select;
