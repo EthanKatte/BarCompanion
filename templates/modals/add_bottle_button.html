@@ -230,6 +230,18 @@
       jsonData.brand = jsonData.brand_select;
     }
 
+    if (!jsonData.spirit_type || jsonData.spirit_type.trim() === "") {
+      console.log(jsonData.spirit_type_select)
+      console.log(jsonData.spirit_type)
+      jsonData.spirit_type = jsonData.spirit_type_select;
+    }
+
+    if (!jsonData.subtype || jsonData.subtype.trim() === "") {
+      if (jsonData.subtype_select && jsonData.subtype_select !== "__custom__") {
+        jsonData.subtype = jsonData.subtype_select;
+      }
+    }
+
     const fileInput = document.getElementById("image-upload");
     const file = fileInput.files[0];
 

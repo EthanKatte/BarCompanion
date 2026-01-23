@@ -48,12 +48,16 @@
 
     <div class="catalog-controls catalog-controls--inventory">
       <div class="catalog-search">
+        <label class="catalog-search__label" for="inventory-search">Search bottles</label>
         <input
           id="inventory-search"
           type="text"
           class="input input-bordered catalog-search__input"
-          placeholder="Search brand, bottle, or style"
+          placeholder="Search brand, bottle, style, or notes"
         />
+        <div class="catalog-search__meta">
+          <span id="inventory-count">{{ total_bottles }} bottles</span>
+        </div>
       </div>
       <div class="catalog-filter-group">
         <label for="filter-bottles-modal" class="btn btn-primary">Filter</label>
@@ -80,11 +84,14 @@
 
     <div id="bottle-grid" class="catalog-grid">
       {% for bottle in bottles %}
+      {% set community_notes = bottle.tasting_notes if bottle.tasting_notes else [] %}
+      {% set expert_notes = bottle.expert_tasting_notes if bottle.expert_tasting_notes else [] %}
+      {% set all_notes = community_notes + expert_notes %}
       <div
         class="catalog-card{% if bottle.available != 1 %} is-unavailable{% endif %}"
         data-available="{{ bottle.available }}"
         data-special="{{ 1 if bottle.special == 1 else 0 }}"
-        data-search="{{ bottle.brand }} {{ bottle.name }} {{ bottle.spirit_type }} {{ bottle.subtype }}"
+        data-search="{{ bottle.brand }} {{ bottle.name }} {{ bottle.spirit_type }} {{ bottle.subtype }} {{ all_notes | join(' ') }}"
       >
         <div class="catalog-card__click bottle-card" data-bottle-id="{{ bottle.id }}">
           <div class="catalog-card__media">
