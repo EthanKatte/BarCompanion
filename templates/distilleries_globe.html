@@ -6,13 +6,7 @@
 <div class="catalog-content globe-fullscreen">
   <div class="globe-stage">
     <div class="globe-overlay">
-      <div class="globe-overlay__card">
-        <p class="globe-overlay__eyebrow">Distillery atlas</p>
-        <h1 class="globe-overlay__title">Globe View</h1>
-        <p class="globe-overlay__subtitle">
-          Spin the globe to explore distilleries by location and tap markers for details.
-        </p>
-      </div>
+
       <div class="globe-overlay__actions">
         <a class="btn btn-primary btn-sm" href="/distilleries">List view</a>
       </div>
@@ -20,15 +14,10 @@
     <canvas id="distillery-globe" aria-label="Interactive distillery globe"></canvas>
     <div class="globe-tooltip" id="globe-tooltip" aria-hidden="true"></div>
   </div>
-  <div class="globe-panel bg-base-100">
-    <div class="globe-panel__header">
-      <h2 class="globe-panel__title">Distillery focus</h2>
-      <p class="globe-panel__subtitle">Select a marker or list item.</p>
-    </div>
+  <div class="globe-panel">
     <div class="globe-panel__details" id="globe-details">
       <p class="text-sm text-gray-500">No distillery selected yet.</p>
     </div>
-    <div class="globe-panel__list" id="globe-list"></div>
   </div>
 </div>
 
@@ -47,6 +36,11 @@
     --globe-marker-selected-glow: rgba(31, 42, 46, 0.24);
     --globe-tooltip-bg: var(--catalog-panel);
     --globe-tooltip-text: var(--catalog-ink);
+  }
+
+  body {
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 
   .globe-fullscreen {
@@ -79,6 +73,7 @@
     width: 100%;
     height: 100%;
     display: block;
+    touch-action: none;
   }
 
   .globe-tooltip {
@@ -148,15 +143,12 @@
   }
 
   .globe-panel {
-    background: var(--catalog-panel);
-    border: 1px solid var(--catalog-border);
-    border-radius: 16px;
-    padding: 16px 18px;
-    backdrop-filter: blur(4px);
-    color: var(--catalog-ink);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    height: 100%;
+    min-height: calc(100vh - 140px);
+    max-height: calc(100vh - 140px);
+    overflow: hidden;
   }
 
   .globe-panel__title {
@@ -176,6 +168,76 @@
     border-radius: 12px;
     border: 1px solid var(--catalog-border);
     background: var(--catalog-panel-strong);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .globe-panel__media {
+    width: 100%;
+    height: 140px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(31, 42, 46, 0.06);
+    border: 1px solid var(--catalog-border);
+  }
+
+  .globe-panel__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .globe-panel__bottles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+    gap: 10px;
+  }
+
+  .globe-panel__bottle {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    text-align: center;
+    font-size: 11px;
+    color: var(--catalog-muted);
+  }
+
+  .globe-panel__bottle img {
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: rgba(31, 42, 46, 0.08);
+  }
+
+  .globe-panel__bottle-placeholder {
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
+    background: rgba(31, 42, 46, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--catalog-muted);
+  }
+
+  .globe-panel__browse {
+    display: grid;
+    gap: 8px;
+    max-height: 100%;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .globe-panel__caption {
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--catalog-accent-strong);
   }
 
   .globe-panel__list {
@@ -183,6 +245,7 @@
     gap: 10px;
     flex: 1;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .globe-panel__item {
@@ -223,6 +286,11 @@
 
     .globe-stage {
       min-height: 60vh;
+    }
+
+    .globe-panel {
+      min-height: auto;
+      max-height: none;
     }
 
     .globe-overlay {
@@ -266,12 +334,18 @@
     dragging: false,
     lastX: 0,
     lastY: 0,
+    dragDistance: 0,
     zoom: 1,
+    pinching: false,
+    pinchStartDistance: 0,
+    pinchStartZoom: 1,
+    ignoreClick: false,
   };
 
   let projectedMarkers = [];
   let selectedId = null;
   let lastTime = 0;
+  const pointers = new Map();
 
   function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
@@ -645,18 +719,80 @@
 
   function updateDetails(distillery) {
     if (!distillery) {
-      details.innerHTML = "<p class=\"text-sm text-gray-500\">No distillery selected yet.</p>";
+      const browseList = globeDistilleries
+        .map(
+          (entry) => `
+            <button class="globe-panel__item" type="button" data-id="${entry.id}">
+              <span class="globe-panel__item-title">${entry.name}</span>
+              <span class="globe-panel__item-meta">${entry.region || "Region pending"}, ${entry.country || "Country pending"}</span>
+            </button>
+          `
+        )
+        .join("");
+
+      details.innerHTML = `
+        <div class="space-y-3">
+          <div class="globe-panel__caption">Browse distilleries</div>
+          <div class="globe-panel__browse">
+            ${browseList || '<p class="text-sm text-gray-500">No distilleries with coordinates.</p>'}
+          </div>
+        </div>
+      `;
+      if (list) {
+        list.hidden = true;
+        list.setAttribute("aria-hidden", "true");
+      }
       return;
+    }
+
+    if (list) {
+      list.hidden = false;
+      list.setAttribute("aria-hidden", "false");
     }
 
     const location = `${distillery.region || "Region pending"}, ${distillery.country || "Country pending"}`;
     const description = distillery.description || "Description pending.";
+    const bottles = Array.isArray(distillery.bottles) ? distillery.bottles : [];
+    const bottlePreview = bottles.slice(0, 8);
+    const remainingCount = bottles.length - bottlePreview.length;
+    const bottleMarkup = bottlePreview
+      .map((bottle) => {
+        if (bottle.image_path) {
+          return `
+            <div class="globe-panel__bottle">
+              <img src="/database_images/bottles/${bottle.image_path}" alt="${bottle.name}" />
+              <span>${bottle.name}</span>
+            </div>
+          `;
+        }
+        return `
+          <div class="globe-panel__bottle">
+            <div class="globe-panel__bottle-placeholder">No image</div>
+            <span>${bottle.name}</span>
+          </div>
+        `;
+      })
+      .join("");
+
+    const distilleryImage = distillery.image_path
+      ? `
+        <div class="globe-panel__media">
+          <img src="/database_images/${distillery.image_path}" alt="${distillery.name}" />
+        </div>
+      `
+      : "";
+
     details.innerHTML = `
       <div class="space-y-2">
-        <div class="text-sm uppercase tracking-[0.2em] text-gray-500">Focus</div>
+        ${distilleryImage}
         <div class="text-lg font-semibold">${distillery.name}</div>
         <div class="text-sm text-gray-600">${location}</div>
         <p class="text-sm text-gray-600">${description}</p>
+        <div class="space-y-2 pt-2">
+          <div class="text-sm font-semibold text-gray-700">Bottles</div>
+          ${bottleMarkup ? `<div class="globe-panel__bottles">${bottleMarkup}</div>` : '<p class="text-sm text-gray-500">No bottles linked yet.</p>'}
+          ${remainingCount > 0 ? `<p class="text-xs text-gray-500">+${remainingCount} more bottles</p>` : ""}
+        </div>
       </div>
     `;
   }
@@ -681,31 +817,80 @@
       `
       )
       .join("");
+  }
 
-    list.addEventListener("click", (event) => {
-      const item = event.target.closest(".globe-panel__item");
-      if (!item) {
-        return;
-      }
-      const distillery = globeDistilleries.find((entry) => String(entry.id) === item.dataset.id);
-      if (!distillery) {
-        return;
-      }
-      selectedId = distillery.id;
-      state.rotLat = clamp(-toRad(distillery.lat), -1.2, 1.2);
-      state.rotLon = -toRad(distillery.lon);
-      updateDetails(distillery);
-    });
+  function focusDistillery(distillery) {
+    selectedId = distillery.id;
+    state.rotLat = clamp(toRad(distillery.lat), -1.2, 1.2);
+    state.rotLon = -toRad(distillery.lon);
+    updateDetails(distillery);
+  }
+
+  function clearFocus() {
+    if (selectedId === null) {
+      return;
+    }
+    selectedId = null;
+    updateDetails(null);
+    hideTooltip();
+  }
+
+  function handleListClick(event) {
+    const item = event.target.closest(".globe-panel__item");
+    if (!item) {
+      return;
+    }
+    const distillery = globeDistilleries.find((entry) => String(entry.id) === item.dataset.id);
+    if (!distillery) {
+      return;
+    }
+    focusDistillery(distillery);
+  }
+
+  if (details) {
+    details.addEventListener("click", handleListClick);
+  }
+
+  if (list) {
+    list.addEventListener("click", handleListClick);
   }
 
   canvas.addEventListener("pointerdown", (event) => {
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     state.dragging = true;
     state.lastX = event.clientX;
     state.lastY = event.clientY;
+    state.dragDistance = 0;
     canvas.setPointerCapture(event.pointerId);
+
+    if (pointers.size === 2) {
+      const [a, b] = Array.from(pointers.values());
+      state.pinching = true;
+      state.pinchStartDistance = Math.hypot(a.x - b.x, a.y - b.y);
+      state.pinchStartZoom = state.zoom;
+      state.ignoreClick = true;
+      state.dragging = false;
+    }
   });
 
   canvas.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "touch") {
+      event.preventDefault();
+    }
+    if (pointers.has(event.pointerId)) {
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    }
+
+    if (state.pinching && pointers.size >= 2) {
+      const [a, b] = Array.from(pointers.values());
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      if (state.pinchStartDistance > 0) {
+        const scale = distance / state.pinchStartDistance;
+        state.zoom = clamp(state.pinchStartZoom * scale, 0.7, 4);
+        resize();
+      }
+      return;
+    }
     if (!state.dragging) {
       handleHover(event);
       return;
@@ -714,21 +899,45 @@
     const dy = event.clientY - state.lastY;
     state.lastX = event.clientX;
     state.lastY = event.clientY;
+    state.dragDistance += Math.hypot(dx, dy);
+    if (state.dragDistance > 6) {
+      clearFocus();
+    }
 
     state.rotLon += dx * 0.005;
     state.rotLat = clamp(state.rotLat + dy * 0.005, -1.2, 1.2);
   });
 
-  canvas.addEventListener("pointerup", () => {
+  canvas.addEventListener("pointerup", (event) => {
     state.dragging = false;
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) {
+      state.pinching = false;
+    }
   });
 
-  canvas.addEventListener("pointerleave", () => {
+  canvas.addEventListener("pointerleave", (event) => {
     state.dragging = false;
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) {
+      state.pinching = false;
+    }
     hideTooltip();
   });
 
+  canvas.addEventListener("pointercancel", (event) => {
+    state.dragging = false;
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) {
+      state.pinching = false;
+    }
+  });
+
   canvas.addEventListener("click", (event) => {
+    if (state.ignoreClick) {
+      state.ignoreClick = false;
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -749,8 +958,13 @@
     });
 
     if (nearest) {
-      selectedId = nearest.id;
-      updateDetails(nearest);
+      if (selectedId === nearest.id) {
+        clearFocus();
+      } else {
+        focusDistillery(nearest);
+      }
+    } else {
+      clearFocus();
     }
   });
 
@@ -791,6 +1005,13 @@
       console.error("Failed to load world atlas data:", error);
     }
   }
+      //  <div class="globe-overlay__card">
+      //  <p class="globe-overlay__eyebrow">Distillery atlas</p>
+      //  <h1 class="globe-overlay__title">Globe View</h1>
+      //  <p class="globe-overlay__subtitle">
+      //    Spin the globe to explore distilleries by location and tap markers for details.
+      //  </p>
+      //</div>
 
   updateDetails(null);
   bindList();

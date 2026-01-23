@@ -321,7 +321,16 @@
     }
 
     try {
-      const res  = await fetch(`/get_images?brand=${encodeURIComponent(brand)}&name=${encodeURIComponent(name)}`);
+      const typeSelect = document.getElementById("spiritTypeSelect");
+      const typeInput = document.getElementById("customSpiritType");
+      const spiritType = typeSelect?.value === "__custom__" ? typeInput?.value : typeSelect?.value;
+      const typeSuffix = spiritType && spiritType.trim()
+        ? `${spiritType.trim()} bottle`
+        : "whiskey bottle";
+
+      const res = await fetch(
+        `/get_images?brand=${encodeURIComponent(brand)}&name=${encodeURIComponent(name)}&type=${encodeURIComponent(typeSuffix)}`
+      );
       const data = await res.json();
       displayImageOptions(data.images);
     } catch (err) {

@@ -234,9 +234,8 @@ def generate_distillery_location(
         "geo_error": geo.get("error", ""),
     }
 
-def test_populate_distilleries_from_brands(
+def populate_distilleries_from_brands(
     limit: Optional[int] = None,
-    dry_run: bool = True,
     secrets_path: str = DEFAULT_SECRETS_PATH,
 ) -> list[Dict[str, Any]]:
     from db_queries import (
@@ -248,8 +247,9 @@ def test_populate_distilleries_from_brands(
 
     brands = get_unique_brands()
     if limit:
-        brands = brands[:limit]
-
+        if limit < len(brands):
+            brands = brands[:limit]
+    print(limit)
     results = []
     for brand in brands:
         bottle_names = get_bottle_names_by_brand(brand)
@@ -267,18 +267,17 @@ def test_populate_distilleries_from_brands(
                 distillery_description=distillery.get("notes"),
                 secrets_path=secrets_path,
             )
-            if not dry_run:
-                distillery_id = upsert_distillery(
-                    name=info.get("distillery_name"),
-                    lat=info.get("lat"),
-                    lon=info.get("lon"),
-                    country=info.get("country"),
-                    region=info.get("region"),
-                    description=info.get("description"),
-                )
-                update_bottles_distillery_by_brand(brand, distillery_id)
-            else:
-                distillery_id = None
+
+            distillery_id = upsert_distillery(
+                name=info.get("distillery_name"),
+                lat=info.get("lat"),
+                lon=info.get("lon"),
+                country=info.get("country"),
+                region=info.get("region"),
+                description=info.get("description"),
+            )
+            update_bottles_distillery_by_brand(brand, distillery_id)
+
 
             results.append(
                 {
@@ -304,6 +303,6 @@ if __name__ == "__main__":
     query = " ".join(sys.argv[1:]).strip()
     #if not query:
         #raise SystemExit("Usage: python distillery_generator.py <distillery name>")
-    test_populate_distilleries_from_brands(limit=2,dry_run=False)
+    #populate_distilleries_from_brands(limit=2)
     #result = generate_distillery_location(query)
     #print(json.dumps(result, indent=2))

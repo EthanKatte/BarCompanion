@@ -60,9 +60,7 @@
       </div>
 
       </div>
-    </div>
-
-    <div class="catalog-content">
+      <div class="catalog-content">
       {% for table, rows in tables_data.items() %}
       <details class="catalog-card">
         <summary class="catalog-card__body cursor-pointer">
@@ -82,6 +80,7 @@
                   <th>Name</th>
                   <th>Type</th>
                   <th>ABV</th>
+                  <th>Distillery</th>
                   <th>Available</th>
                   <th>Special</th>
                 </tr>
@@ -94,6 +93,7 @@
                   <td>{{ row.name }}</td>
                   <td>{{ row.spirit_type }}</td>
                   <td>{{ row.abv }}</td>
+                  <td>{{ row.distillery_id or "-" }}</td>
                   <td>
                     <input
                       type="checkbox"
@@ -112,6 +112,52 @@
                       {% if row.special == 1 %}checked{% endif %}
                     />
                   </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            {% elif table == "distilleries" %}
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <div class="text-sm text-gray-500">
+                Primary:
+                <span id="merge-primary-id" class="font-semibold text-gray-700">—</span>
+                Secondary:
+                <span id="merge-secondary-id" class="font-semibold text-gray-700">—</span>
+              </div>
+              <button
+                id="merge-distilleries-btn"
+                class="btn btn-warning btn-sm"
+                type="button"
+                onclick="mergeDistilleries()"
+                disabled
+              >
+                Merge selected
+              </button>
+            </div>
+            <table class="table table-zebra w-full">
+              <thead>
+                <tr>
+                  <th>Select</th>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Region</th>
+                  <th>Country</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                <tr>
+                  <td>
+                    <input
+                      type="checkbox"
+                      class="checkbox checkbox-primary distillery-merge-checkbox"
+                      data-distillery-id="{{ row.id }}"
+                    />
+                  </td>
+                  <td>{{ row.id }}</td>
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.region or "-" }}</td>
+                  <td>{{ row.country or "-" }}</td>
                 </tr>
                 {% endfor %}
               </tbody>
@@ -144,6 +190,9 @@
       {% endfor %}
     </div>
   </div>
+    </div>
+
+    
 
   <div id="distillery-images" class="tab-panel mt-6 hidden">
     <div class="catalog-grid">
@@ -378,7 +427,7 @@
   }
 
   async function fetchDistilleryImages(distilleryId, distilleryName) {
-    const url = `/get_images?brand=${encodeURIComponent(distilleryName)}&name="distillerylocationbuilding"`;
+    const url = `/get_images?brand=${encodeURIComponent(distilleryName)}&type=exterior%20interior`;
     try {
       showLoadingOverlay();
       const response = await fetch(url);
@@ -460,6 +509,92 @@
     }
   }
 
+  const distilleryMergeSelection = [];
+
+  function syncDistilleryMergeUi() {
+    const primaryLabel = document.getElementById("merge-primary-id");
+    const secondaryLabel = document.getElementById("merge-secondary-id");
+    const mergeButton = document.getElementById("merge-distilleries-btn");
+    const primaryId = distilleryMergeSelection[0] || "—";
+    const secondaryId = distilleryMergeSelection[1] || "—";
+
+    if (primaryLabel) {
+      primaryLabel.textContent = primaryId;
+    }
+    if (secondaryLabel) {
+      secondaryLabel.textContent = secondaryId;
+    }
+    if (mergeButton) {
+      mergeButton.disabled = distilleryMergeSelection.length !== 2;
+    }
+  }
+
+  function handleDistilleryMergeSelection(event) {
+    const checkbox = event.target;
+    const distilleryId = checkbox.dataset.distilleryId;
+    if (!distilleryId) {
+      return;
+    }
+
+    if (checkbox.checked) {
+      if (distilleryMergeSelection.length >= 2) {
+        checkbox.checked = false;
+        showAlert("Select only two distilleries to merge.", "error");
+        return;
+      }
+      distilleryMergeSelection.push(distilleryId);
+    } else {
+      const index = distilleryMergeSelection.indexOf(distilleryId);
+      if (index >= 0) {
+        distilleryMergeSelection.splice(index, 1);
+      }
+    }
+
+    syncDistilleryMergeUi();
+  }
+
+  async function mergeDistilleries() {
+    if (distilleryMergeSelection.length !== 2) {
+      showAlert("Select a primary and a secondary distillery.", "error");
+      return;
+    }
+
+    const [primaryId, secondaryId] = distilleryMergeSelection;
+    const confirmed = window.confirm(
+      `Merge distillery ${secondaryId} into ${primaryId}? This will move bottles and delete ${secondaryId}.`
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      showLoadingOverlay();
+      const response = await fetch("/api/merge_distilleries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ primary_id: primaryId, secondary_id: secondaryId }),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        showAlert(
+          `Merged: ${result.updated_bottles || 0} bottles reassigned.`,
+          "success",
+          6000
+        );
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        showAlert(result.error || "Failed to merge distilleries.", "error");
+      }
+    } catch (error) {
+      console.error("Error merging distilleries:", error);
+      showAlert("An error occurred while merging distilleries.", "error");
+    } finally {
+      hideLoadingOverlay();
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     initAdminTabs();
     document.querySelectorAll(".distillery-image-search").forEach((button) => {
@@ -474,6 +609,10 @@
         updateBottleFlag(bottleId, flag, toggle.checked, toggle);
       });
     });
+    document.querySelectorAll(".distillery-merge-checkbox").forEach((checkbox) => {
+      checkbox.addEventListener("change", handleDistilleryMergeSelection);
+    });
+    syncDistilleryMergeUi();
   });
 
   </script>

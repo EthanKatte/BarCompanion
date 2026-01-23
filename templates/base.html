@@ -235,6 +235,30 @@
       pointer-events: none;
   }
 
+  html {
+      scrollbar-width: auto;
+      scrollbar-color: var(--catalog-accent-strong) transparent;
+  }
+
+  *::-webkit-scrollbar {
+      width: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+      background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+      background-color: var(--catalog-accent-strong);
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+      background-color: var(--catalog-accent);
+  }
+
   .catalog-orb--a {
       width: 260px;
       height: 260px;
@@ -342,35 +366,26 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 1.5rem;
-      align-items: end;
+      align-items: center;
       background: var(--catalog-panel);
       border-radius: 20px;
       border: 1px solid var(--catalog-border);
       padding: 1.25rem;
   }
 
-  .catalog-search__label {
-      display: block;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--catalog-ink);
-      margin-bottom: 0.5rem;
+  .catalog-controls--inventory {
+      grid-template-columns: minmax(300px, 500px) auto auto;
   }
 
   .catalog-search__input {
       width: 100%;
   }
 
-  .catalog-search__meta {
-      margin-top: 0.5rem;
-      font-size: 0.8rem;
-      color: var(--catalog-muted);
-  }
-
   .catalog-controls__actions {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      align-items: flex-start;
   }
 
   .catalog-toggle {
@@ -381,10 +396,21 @@
       color: var(--catalog-ink);
   }
 
+  .catalog-toggle-group {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.75rem 1rem;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+  }
+
   .catalog-filter-group {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
+      align-items: center;
   }
 
   .catalog-grid {
@@ -407,7 +433,7 @@
   }
 
   .catalog-card.is-unavailable {
-      opacity: 0.68;
+      opacity: 0.3;
   }
 
   .catalog-card__click {
@@ -548,7 +574,7 @@
   }
   </style>
 </head>
-<body class="bg-base h-screen">
+<body class="bg-base h-screen overflow-x-hidden">
   <!-- Navigation Bar -->
   <nav class="bg-primary text-white p-4 flex items-center justify-between">
     <!-- Left-aligned Screensaver Button -->

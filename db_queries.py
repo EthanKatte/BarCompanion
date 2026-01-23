@@ -306,6 +306,35 @@ def update_distillery(distillery_id, **kwargs):
         conn.commit()
     return cursor.rowcount
 
+def merge_distilleries(primary_id, secondary_id):
+    """
+    Merge two distilleries by moving bottles from secondary to primary and deleting secondary.
+    """
+    if primary_id == secondary_id:
+        raise ValueError("Primary and secondary distillery IDs must be different.")
+
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM distilleries WHERE id = ?", (primary_id,))
+        if cursor.fetchone() is None:
+            raise ValueError("Primary distillery not found.")
+
+        cursor.execute("SELECT id FROM distilleries WHERE id = ?", (secondary_id,))
+        if cursor.fetchone() is None:
+            raise ValueError("Secondary distillery not found.")
+
+        cursor.execute(
+            "UPDATE bottles SET distillery_id = ? WHERE distillery_id = ?",
+            (primary_id, secondary_id),
+        )
+        updated_bottles = cursor.rowcount
+
+        cursor.execute("DELETE FROM distilleries WHERE id = ?", (secondary_id,))
+        deleted_distilleries = cursor.rowcount
+        conn.commit()
+
+    return {"updated_bottles": updated_bottles, "deleted_distilleries": deleted_distilleries}
+
 def upsert_distillery(
     name,
     lat=None,

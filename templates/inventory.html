@@ -46,35 +46,35 @@
 
     {% include "modals/add_bottle_button.html" %}
 
-    <div class="catalog-controls">
+    <div class="catalog-controls catalog-controls--inventory">
       <div class="catalog-search">
-        <label class="catalog-search__label" for="inventory-search">Search bottles</label>
         <input
           id="inventory-search"
           type="text"
           class="input input-bordered catalog-search__input"
           placeholder="Search brand, bottle, or style"
         />
-        <div class="catalog-search__meta">
-          <span id="inventory-count">{{ total_bottles }} bottles</span>
-        </div>
       </div>
-      <div class="catalog-controls__actions">
+      <div class="catalog-filter-group">
+        <label for="filter-bottles-modal" class="btn btn-primary">Filter</label>
+        {% include "modals/filter_bottle.html" %}
+        <button class="btn btn-tertiary" type="button" onclick="window.location.href = '/inventory'">
+          Clear filters
+        </button>
+      </div>
+      <div class="catalog-toggle-group">
         <label class="catalog-toggle">
-          <input
-            type="checkbox"
-            id="inventory-hide-unavailable"
-            class="checkbox checkbox-primary"
-          />
+          <input type="checkbox" id="inventory-hide-unavailable" class="checkbox checkbox-primary"/>
           <span>Hide unavailable</span>
         </label>
-        <div class="catalog-filter-group">
-          <label for="filter-bottles-modal" class="btn btn-primary">Filter</label>
-          {% include "modals/filter_bottle.html" %}
-          <button class="btn btn-tertiary" type="button" onclick="window.location.href = '/inventory'">
-            Clear filters
-          </button>
-        </div>
+        <label class="catalog-toggle">
+          <input type="checkbox" id="filter-special" class="checkbox checkbox-primary" />
+          <span>Show only special</span>
+        </label>
+        <label class="catalog-toggle">
+          <input type="checkbox" id="filter-hide-special" class="checkbox checkbox-primary" />
+          <span>Hide special</span>
+        </label>
       </div>
     </div>
 
@@ -83,6 +83,7 @@
       <div
         class="catalog-card{% if bottle.available != 1 %} is-unavailable{% endif %}"
         data-available="{{ bottle.available }}"
+        data-special="{{ 1 if bottle.special == 1 else 0 }}"
         data-search="{{ bottle.brand }} {{ bottle.name }} {{ bottle.spirit_type }} {{ bottle.subtype }}"
       >
         <div class="catalog-card__click bottle-card" data-bottle-id="{{ bottle.id }}">
@@ -92,13 +93,16 @@
               alt="{{ bottle.name }}"
               class="delayed"
             />
-            {% if bottle.available == 1 %}
-              <span class="catalog-badge catalog-badge--available">Available</span>
-            {% else %}
+            {% if bottle.available != 1 %}
               <span class="catalog-badge catalog-badge--unavailable">Unavailable</span>
+              {% if bottle.special == 1 %}
+                <span class="catalog-badge catalog-badge--special mt-8">Special</span>
+              {% endif %}
             {% endif %}
             {% if bottle.special == 1 %}
-              <span class="catalog-badge catalog-badge--special mt-8">Special</span>
+              {% if bottle.available == 1 %}
+                <span class="catalog-badge catalog-badge--special">Special</span>
+              {% endif %}
             {% endif %}
           </div>
           <div class="catalog-card__body">
@@ -108,9 +112,6 @@
             </div>
             <p class="catalog-card__name">{{ bottle.name }}</p>
             <div class="catalog-card__meta">
-              {% if bottle.special == 1 %}
-              <span class="catalog-chip">Special</span>
-              {% endif %}
               <span class="catalog-chip">{{ bottle.spirit_type }}</span>
               {% if bottle.subtype %}
               <span class="catalog-chip catalog-chip--muted">{{ bottle.subtype }}</span>
@@ -153,15 +154,19 @@
     const searchInput = document.getElementById("inventory-search");
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
     const hideUnavailable = document.getElementById("inventory-hide-unavailable")?.checked;
+    const showOnlySpecial = document.getElementById("filter-special")?.checked;
+    const hideSpecial = document.getElementById("filter-hide-special")?.checked;
     const bottles = document.querySelectorAll("#bottle-grid .catalog-card");
     let visibleCount = 0;
 
     bottles.forEach((bottle) => {
       const searchText = (bottle.dataset.search || "").toLowerCase();
       const isAvailable = bottle.dataset.available === "1";
+      const isSpecial = bottle.dataset.special === "1";
       const matchesSearch = !query || searchText.includes(query);
       const matchesAvailability = !hideUnavailable || isAvailable;
-      const shouldShow = matchesSearch && matchesAvailability;
+      const matchesSpecial = showOnlySpecial ? isSpecial : hideSpecial ? !isSpecial : true;
+      const shouldShow = matchesSearch && matchesAvailability && matchesSpecial;
 
       bottle.classList.toggle("hidden", !shouldShow);
       if (shouldShow) {
@@ -225,6 +230,23 @@
     const hideUnavailable = document.getElementById("inventory-hide-unavailable");
     if (hideUnavailable) {
       hideUnavailable.addEventListener("change", applyInventoryFilters);
+    }
+
+    const showOnlySpecial = document.getElementById("filter-special");
+    const hideSpecial = document.getElementById("filter-hide-special");
+    if (showOnlySpecial && hideSpecial) {
+      showOnlySpecial.addEventListener("change", () => {
+        if (showOnlySpecial.checked) {
+          hideSpecial.checked = false;
+        }
+        applyInventoryFilters();
+      });
+      hideSpecial.addEventListener("change", () => {
+        if (hideSpecial.checked) {
+          showOnlySpecial.checked = false;
+        }
+        applyInventoryFilters();
+      });
     }
 
     applyInventoryFilters();

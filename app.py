@@ -8,6 +8,7 @@ from db_queries import (get_all_bottles,
                                 get_distillery_by_id,
                                 get_bottles_by_distillery_id,
                                 update_distillery,
+                                merge_distilleries,
                                 get_all_users_with_reviews, 
                                 add_user, 
                                 get_user_id_by_name,
@@ -35,6 +36,8 @@ from db_queries import (get_all_bottles,
 from flask_cors import CORS
 import base64
 import os
+import re
+import unicodedata
 from duckduckgo_search import DDGS
 import json
 import requests
@@ -42,12 +45,24 @@ from urllib.parse import quote_plus
 from openai import OpenAI
 from notes_generator import generate_expert_notes
 from description_generator import generate_description
-from distillery_generator import test_populate_distilleries_from_brands
+from distillery_generator import populate_distilleries_from_brands
 
 
 
 app = Flask(__name__)
 CORS(app)
+
+def sanitize_filename(value, fallback="distillery"):
+    if value is None:
+        return fallback
+    normalized = unicodedata.normalize("NFKD", str(value))
+    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
+    ascii_value = ascii_value.replace("/", " ").replace("\\", " ")
+    ascii_value = re.sub(r"[^A-Za-z0-9._-]+", "_", ascii_value)
+    ascii_value = re.sub(r"_+", "_", ascii_value)
+    ascii_value = re.sub(r"\.+", ".", ascii_value)
+    ascii_value = ascii_value.strip("._-")
+    return ascii_value or fallback
 
 def get_api_key(filepath: str = "secrets.json", key_name: str = "OPENAI_KEY") -> str:
     """
@@ -159,6 +174,8 @@ def distilleries():
 @app.route('/distilleries/globe', methods=["GET"])
 def distilleries_globe():
     distilleries = get_all_distilleries()
+    for distillery in distilleries:
+        distillery["bottles"] = get_bottles_by_distillery_id(distillery["id"])
     return render_template('distilleries_globe.html', distilleries=distilleries)
 
 @app.route("/modal/distillery", methods=["POST"])
@@ -327,9 +344,8 @@ def refresh_distilleries():
         return jsonify({"error": "Limit must be a number."}), 400
 
     try:
-        results = test_populate_distilleries_from_brands(
+        results = populate_distilleries_from_brands(
             limit=limit_value,
-            dry_run=False,
         )
         updated_count = len(results)
         return jsonify({"updated": updated_count}), 200
@@ -403,8 +419,9 @@ def api_add_bottle():
 def get_images():
     brand = request.args.get("brand", "")
     name = request.args.get("name", "")
-    query = f"{brand} {name} whiskey bottle"
-
+    suffix = request.args.get("type", "")
+    query = f"{brand} {name} {suffix}".strip()
+    print(query)
     image_data_list = []
 
     try:
@@ -508,6 +525,32 @@ def api_update_bottle_flags():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+@app.route('/api/merge_distilleries', methods=["POST"])
+def api_merge_distilleries():
+    data = request.json or {}
+    primary_id = data.get("primary_id")
+    secondary_id = data.get("secondary_id")
+
+    try:
+        primary_id = int(primary_id)
+        secondary_id = int(secondary_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Primary and secondary IDs must be numbers."}), 400
+
+    try:
+        result = merge_distilleries(primary_id, secondary_id)
+        return jsonify(
+            {
+                "message": "Distilleries merged successfully.",
+                "updated_bottles": result["updated_bottles"],
+                "deleted_distilleries": result["deleted_distilleries"],
+            }
+        ), 200
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"An error occurred: {str(exc)}"}), 500
+
 @app.route('/api/add_user',  methods=["POST"])
 def api_add_user():
     UPLOAD_FOLDER = "./database_images/users"
@@ -560,7 +603,7 @@ def api_update_distillery_image():
 
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-    name_slug = distillery["name"].replace(" ", "_").replace("/", "_")
+    name_slug = sanitize_filename(distillery["name"])
     extension = "png"
     if base64_image.startswith("data:image/"):
         header = base64_image.split(",", 1)[0]
@@ -571,7 +614,7 @@ def api_update_distillery_image():
         elif "gif" in header:
             extension = "gif"
 
-    image_filename = f"{name_slug}.{extension}"
+    image_filename = f"{name_slug}_{distillery_id}.{extension}"
     image_filepath = os.path.join(UPLOAD_FOLDER, image_filename)
 
     try:
