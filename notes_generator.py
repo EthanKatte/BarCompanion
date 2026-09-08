@@ -243,6 +243,7 @@ def generate_expert_notes(
         url = selection.get("selected_url")
         candidate_urls = {item["url"] for item in candidates}
         if not url or url not in candidate_urls:
+            attempts += 1
             continue
 
         print("selection", selection)

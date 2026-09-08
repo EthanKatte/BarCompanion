@@ -112,6 +112,20 @@
         <textarea name="description" class="textarea textarea-bordered"></textarea>
       </div>
 
+      <div class="form-control">
+        <label class="label cursor-pointer gap-3">
+          <span class="label-text">Available</span>
+          <input type="checkbox" name="available" class="checkbox checkbox-primary" checked />
+        </label>
+      </div>
+
+      <div class="form-control">
+        <label class="label cursor-pointer gap-3">
+          <span class="label-text">Special bottle</span>
+          <input type="checkbox" name="special" class="checkbox checkbox-primary" />
+        </label>
+      </div>
+
       <!-- File Upload -->
       <div class="form-control">
         <label class="label">
@@ -202,8 +216,30 @@
       jsonData[key] = value;
     });
 
+    const availableInput = document.querySelector("input[name='available']");
+    if (availableInput) {
+      jsonData.available = availableInput.checked ? "1" : "0";
+    }
+
+    const specialInput = document.querySelector("input[name='special']");
+    if (specialInput) {
+      jsonData.special = specialInput.checked ? "1" : "0";
+    }
+
     if (!jsonData.brand || jsonData.brand.trim() === "") {
       jsonData.brand = jsonData.brand_select;
+    }
+
+    if (!jsonData.spirit_type || jsonData.spirit_type.trim() === "") {
+      console.log(jsonData.spirit_type_select)
+      console.log(jsonData.spirit_type)
+      jsonData.spirit_type = jsonData.spirit_type_select;
+    }
+
+    if (!jsonData.subtype || jsonData.subtype.trim() === "") {
+      if (jsonData.subtype_select && jsonData.subtype_select !== "__custom__") {
+        jsonData.subtype = jsonData.subtype_select;
+      }
     }
 
     const fileInput = document.getElementById("image-upload");
@@ -297,7 +333,16 @@
     }
 
     try {
-      const res  = await fetch(`/get_images?brand=${encodeURIComponent(brand)}&name=${encodeURIComponent(name)}`);
+      const typeSelect = document.getElementById("spiritTypeSelect");
+      const typeInput = document.getElementById("customSpiritType");
+      const spiritType = typeSelect?.value === "__custom__" ? typeInput?.value : typeSelect?.value;
+      const typeSuffix = spiritType && spiritType.trim()
+        ? `${spiritType.trim()} bottle`
+        : "whiskey bottle";
+
+      const res = await fetch(
+        `/get_images?brand=${encodeURIComponent(brand)}&name=${encodeURIComponent(name)}&type=${encodeURIComponent(typeSuffix)}`
+      );
       const data = await res.json();
       displayImageOptions(data.images);
     } catch (err) {

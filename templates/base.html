@@ -235,6 +235,30 @@
       pointer-events: none;
   }
 
+  html {
+      scrollbar-width: auto;
+      scrollbar-color: var(--catalog-accent-strong) transparent;
+  }
+
+  *::-webkit-scrollbar {
+      width: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+      background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+      background-color: var(--catalog-accent-strong);
+      border-radius: 999px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+      background-color: var(--catalog-accent);
+  }
+
   .catalog-orb--a {
       width: 260px;
       height: 260px;
@@ -303,10 +327,16 @@
   }
 
   .catalog-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 1rem;
-      margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  @media (min-width: 1280px) {
+  .catalog-stats {
+        grid-template-columns: repeat(4, minmax(140px, 1fr));
+    }
   }
 
   .catalog-stat {
@@ -315,6 +345,8 @@
       border: 1px solid var(--catalog-border);
       padding: 0.75rem 1rem;
   }
+
+
 
   .catalog-stat__label {
       display: block;
@@ -334,35 +366,41 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 1.5rem;
-      align-items: end;
+      align-items: center;
       background: var(--catalog-panel);
       border-radius: 20px;
       border: 1px solid var(--catalog-border);
       padding: 1.25rem;
   }
 
+  .catalog-controls--inventory {
+      grid-template-columns: minmax(300px, 500px) auto auto;
+  }
+
+  .catalog-search {
+      display: grid;
+      gap: 0.6rem;
+  }
+
   .catalog-search__label {
-      display: block;
-      font-size: 0.85rem;
       font-weight: 600;
       color: var(--catalog-ink);
-      margin-bottom: 0.5rem;
+  }
+
+  .catalog-search__meta {
+      font-size: 0.85rem;
+      color: var(--catalog-muted);
   }
 
   .catalog-search__input {
       width: 100%;
   }
 
-  .catalog-search__meta {
-      margin-top: 0.5rem;
-      font-size: 0.8rem;
-      color: var(--catalog-muted);
-  }
-
   .catalog-controls__actions {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      align-items: flex-start;
   }
 
   .catalog-toggle {
@@ -373,10 +411,21 @@
       color: var(--catalog-ink);
   }
 
+  .catalog-toggle-group {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 0.75rem 1rem;
+      align-items: center;
+      justify-content: center;
+      align-self: center;
+  }
+
   .catalog-filter-group {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
+      align-items: center;
   }
 
   .catalog-grid {
@@ -399,7 +448,7 @@
   }
 
   .catalog-card.is-unavailable {
-      opacity: 0.68;
+      opacity: 0.3;
   }
 
   .catalog-card__click {
@@ -441,6 +490,11 @@
 
   .catalog-badge--unavailable {
       background: #6f7a7a;
+  }
+
+  .catalog-badge--special {
+      background: var(--fallback-s, oklch(var(--s)/1));
+      color: var(--fallback-sc, oklch(var(--sc)/1));
   }
 
   .catalog-card__body {
@@ -535,7 +589,7 @@
   }
   </style>
 </head>
-<body class="bg-base h-screen">
+<body class="bg-base h-screen overflow-x-hidden">
   <!-- Navigation Bar -->
   <nav class="bg-primary text-white p-4 flex items-center justify-between">
     <!-- Left-aligned Screensaver Button -->
@@ -555,6 +609,11 @@
       <li>
         <a href="/inventory" class="hover:underline flex items-center">
           <i class="fas fa-boxes text-3xl"></i>
+        </a>
+      </li>
+      <li>
+        <a href="/distilleries" class="hover:underline flex items-center">
+          <i class="fas fa-industry text-3xl"></i>
         </a>
       </li>
       <li>

@@ -4,6 +4,11 @@ from db_queries import (get_all_bottles,
                                 add_bottle, 
                                 remove_bottle, 
                                 get_bottles_from_query, 
+                                get_all_distilleries,
+                                get_distillery_by_id,
+                                get_bottles_by_distillery_id,
+                                update_distillery,
+                                merge_distilleries,
                                 get_all_users_with_reviews, 
                                 add_user, 
                                 get_user_id_by_name,
@@ -31,6 +36,8 @@ from db_queries import (get_all_bottles,
 from flask_cors import CORS
 import base64
 import os
+import re
+import unicodedata
 from duckduckgo_search import DDGS
 import json
 import requests
@@ -38,11 +45,24 @@ from urllib.parse import quote_plus
 from openai import OpenAI
 from notes_generator import generate_expert_notes
 from description_generator import generate_description
+from distillery_generator import populate_distilleries_from_brands
 
 
 
 app = Flask(__name__)
 CORS(app)
+
+def sanitize_filename(value, fallback="distillery"):
+    if value is None:
+        return fallback
+    normalized = unicodedata.normalize("NFKD", str(value))
+    ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
+    ascii_value = ascii_value.replace("/", " ").replace("\\", " ")
+    ascii_value = re.sub(r"[^A-Za-z0-9._-]+", "_", ascii_value)
+    ascii_value = re.sub(r"_+", "_", ascii_value)
+    ascii_value = re.sub(r"\.+", ".", ascii_value)
+    ascii_value = ascii_value.strip("._-")
+    return ascii_value or fallback
 
 def get_api_key(filepath: str = "secrets.json", key_name: str = "OPENAI_KEY") -> str:
     """
@@ -83,6 +103,8 @@ def inventory():
         "spirit_type": request.args.get("type"),
         "subtype": request.args.get("subtype"),
     }
+    special_filter = request.args.get("special")
+    hide_special_filter = request.args.get("hide_special")
     sort_by = request.args.get("sort_by", "brand")  # Default sort by name
     order = request.args.get("order", "asc")       # Default order ascending
 
@@ -93,6 +115,11 @@ def inventory():
         if value:
             query += f" AND {key} = ?"
             params.append(value)
+
+    if special_filter == "1":
+        query += " AND special = 1"
+    elif hide_special_filter == "1":
+        query += " AND (special IS NULL OR special = 0)"
 
     query += f" ORDER BY {sort_by} {order.upper()}"  # Always add ORDER BY
 
@@ -138,6 +165,34 @@ def api_bottles():
 def users():
     users = get_all_users_with_reviews()
     return render_template('users.html', users=users)
+
+@app.route('/distilleries', methods=["GET"])
+def distilleries():
+    distilleries = get_all_distilleries()
+    return render_template('distilleries.html', distilleries=distilleries)
+
+@app.route('/distilleries/globe', methods=["GET"])
+def distilleries_globe():
+    distilleries = get_all_distilleries()
+    for distillery in distilleries:
+        distillery["bottles"] = get_bottles_by_distillery_id(distillery["id"])
+    return render_template('distilleries_globe.html', distilleries=distilleries)
+
+@app.route("/modal/distillery", methods=["POST"])
+def distillery_modal():
+    data = request.get_json()
+    distillery_id = data.get("distillery_id")
+
+    distillery = get_distillery_by_id(distillery_id)
+    if not distillery:
+        return "Distillery not found", 404
+
+    bottles = get_bottles_by_distillery_id(distillery_id)
+    return render_template(
+        "modals/distillery_card_popup.html",
+        distillery=distillery,
+        bottles=bottles,
+    )
 
 @app.route("/events", methods=["GET"])
 def events():
@@ -200,7 +255,12 @@ def event_client():
 def admin_page():
     try:
         tables_data = get_all_tables_contents()
-        return render_template("admin.html", tables_data=tables_data)
+        distilleries = get_all_distilleries()
+        return render_template(
+            "admin.html",
+            tables_data=tables_data,
+            distilleries=distilleries,
+        )
     except Exception as e:
         return f"An error occurred: {str(e)}", 500
 
@@ -275,6 +335,23 @@ def refresh_data():
 
     return jsonify({"error": "Unknown refresh type received (descriptions or notes)"}), 400
 
+@app.route("/api/refresh_distilleries", methods=["POST"])
+def refresh_distilleries():
+    limit = request.args.get("limit")
+    try:
+        limit_value = int(limit) if limit else None
+    except ValueError:
+        return jsonify({"error": "Limit must be a number."}), 400
+
+    try:
+        results = populate_distilleries_from_brands(
+            limit=limit_value,
+        )
+        updated_count = len(results)
+        return jsonify({"updated": updated_count}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to refresh distilleries: {str(e)}"}), 500
+
 
 
 # API Queries
@@ -309,6 +386,15 @@ def api_add_bottle():
         if description.strip() == "":
             description = generate_description(f"{data['brand']} {data['name']} {data['spirit_type']} ")
 
+        special_flag = str(data.get("special", "")).strip().lower()
+        special = 1 if special_flag in ("1", "true", "on", "yes") else 0
+        available_value = data.get("available")
+        if available_value is None:
+            available = 1
+        else:
+            available_flag = str(available_value).strip().lower()
+            available = 1 if available_flag in ("1", "true", "on", "yes") else 0
+
         # Add bottle to the database
         new_id = add_bottle(
             brand=data['brand'],
@@ -317,7 +403,9 @@ def api_add_bottle():
             spirit_type=data['spirit_type'],
             subtype=data.get('subtype'),
             description=description,
-            image_path=image_filename if image_filename else None  # Save the filename in DB
+            image_path=image_filename if image_filename else None,  # Save the filename in DB
+            available=available,
+            special=special,
         )
 
         return jsonify({"message": "Bottle added successfully", "id": new_id}), 201
@@ -331,8 +419,9 @@ def api_add_bottle():
 def get_images():
     brand = request.args.get("brand", "")
     name = request.args.get("name", "")
-    query = f"{brand} {name} whiskey bottle"
-
+    suffix = request.args.get("type", "")
+    query = f"{brand} {name} {suffix}".strip()
+    print(query)
     image_data_list = []
 
     try:
@@ -405,6 +494,63 @@ def api_make_unavailable():
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
+@app.route('/api/update_bottle_flags', methods=["POST"])
+def api_update_bottle_flags():
+    data = request.json or {}
+    bottle_id = data.get("id")
+    print(data, bottle_id)
+    if bottle_id is None:
+        return jsonify({"error": "Bottle ID is required."}), 400
+    try:
+        bottle_id = int(bottle_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Bottle ID must be a number."}), 400
+
+    updates = {}
+    if "available" in data:
+        available_flag = str(data.get("available", "")).strip().lower()
+        updates["available"] = 1 if available_flag == "1" else 0
+    if "special" in data:
+        special_flag = str(data.get("special", "")).strip().lower()
+        updates["special"] = 1 if special_flag == "1" else 0
+
+    if not updates:
+        return jsonify({"error": "No updates provided."}), 400
+    print(updates)
+    try:
+        result = update_bottle(bottle_id, **updates)
+        if result > 0:
+            return jsonify({"message": "Bottle updated successfully.", "updated": updates}), 200
+        return jsonify({"error": f"No record found with ID {bottle_id} in Bottles."}), 404
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+@app.route('/api/merge_distilleries', methods=["POST"])
+def api_merge_distilleries():
+    data = request.json or {}
+    primary_id = data.get("primary_id")
+    secondary_id = data.get("secondary_id")
+
+    try:
+        primary_id = int(primary_id)
+        secondary_id = int(secondary_id)
+    except (TypeError, ValueError):
+        return jsonify({"error": "Primary and secondary IDs must be numbers."}), 400
+
+    try:
+        result = merge_distilleries(primary_id, secondary_id)
+        return jsonify(
+            {
+                "message": "Distilleries merged successfully.",
+                "updated_bottles": result["updated_bottles"],
+                "deleted_distilleries": result["deleted_distilleries"],
+            }
+        ), 200
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"An error occurred: {str(exc)}"}), 500
+
 @app.route('/api/add_user',  methods=["POST"])
 def api_add_user():
     UPLOAD_FOLDER = "./database_images/users"
@@ -440,6 +586,46 @@ def api_add_user():
         return jsonify({"error": f"Missing required field: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+
+@app.route('/api/update_distillery_image', methods=["POST"])
+def api_update_distillery_image():
+    UPLOAD_FOLDER = "./database_images/distilleries"
+    data = request.json
+    distillery_id = data.get("distillery_id")
+    base64_image = data.get("photo")
+
+    if not distillery_id or not base64_image:
+        return jsonify({"error": "Distillery ID and image are required."}), 400
+
+    distillery = get_distillery_by_id(distillery_id)
+    if not distillery:
+        return jsonify({"error": "Distillery not found."}), 404
+
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+    name_slug = sanitize_filename(distillery["name"])
+    extension = "png"
+    if base64_image.startswith("data:image/"):
+        header = base64_image.split(",", 1)[0]
+        if "jpeg" in header or "jpg" in header:
+            extension = "jpg"
+        elif "webp" in header:
+            extension = "webp"
+        elif "gif" in header:
+            extension = "gif"
+
+    image_filename = f"{name_slug}_{distillery_id}.{extension}"
+    image_filepath = os.path.join(UPLOAD_FOLDER, image_filename)
+
+    try:
+        image_data = base64_image.split(",", 1)[1]
+        with open(image_filepath, "wb") as image_file:
+            image_file.write(base64.b64decode(image_data))
+    except Exception as e:
+        return jsonify({"error": f"Failed to save image: {str(e)}"}), 500
+
+    update_distillery(distillery_id, image_path=f"distilleries/{image_filename}")
+    return jsonify({"message": "Distillery image updated.", "image_path": f"distilleries/{image_filename}"}), 200
 
 def add_notes_to_review(notes, review_id):
     """
@@ -724,7 +910,7 @@ def serve_uploaded_image(filename):
     return send_from_directory('database_images', filename)
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5050, debug=True)
 
 
 

@@ -3,6 +3,11 @@
   <div class="modal-box relative">
     <!-- Modal Content -->
     <h3 class="font-bold text-lg">{{ bottle.brand }} - {{ bottle.name }}</h3>
+    {% if bottle.special == 1 %}
+    <div class="mt-2">
+      <span class="badge badge-primary">Special</span>
+    </div>
+    {% endif %}
     <p class="py-4">
       ABV: {{ bottle.abv }} <br />
       {{ bottle.description }}

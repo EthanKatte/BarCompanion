@@ -64,7 +64,48 @@ def get_all_bottles():
             ]
             bottle_list.append(bottle_dict)
 
-        return bottle_list
+    return bottle_list
+
+def get_all_distilleries():
+    """
+    Return all distilleries in the database as a list of dictionaries.
+    """
+    with create_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM distilleries ORDER BY name")
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+def get_distillery_by_id(distillery_id):
+    """
+    Retrieve a single distillery by its ID.
+    """
+    with create_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM distilleries WHERE id = ?", (distillery_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+def get_bottles_by_distillery_id(distillery_id):
+    """
+    Retrieve bottles mapped to a distillery ID.
+    """
+    with create_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, brand, name, abv, spirit_type, subtype, image_path
+            FROM bottles
+            WHERE distillery_id = ?
+            ORDER BY brand, name
+            """,
+            (distillery_id,),
+        )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
 
 def get_random_available_bottle_id():
     with create_connection() as conn:
@@ -72,13 +113,14 @@ def get_random_available_bottle_id():
         cursor = conn.cursor()
 
         # Query all available bottles
-        cursor.execute("SELECT id FROM bottles WHERE available = 1")
+        cursor.execute("SELECT id FROM bottles WHERE available = 1 AND special = 0")
         bottles = cursor.fetchall()
 
         if not bottles:
             return jsonify({"error": "No available bottles found"}), 404
 
         # Select a random bottle
+        print(bottles)
         random_bottle = random.choice(bottles)
         return random_bottle
 
@@ -140,14 +182,87 @@ def get_bottle_name_by_id(bottle_id):
             return result[0]  # Return the bottle name
         return None  # Return None if no bottle found
 
-def add_bottle(brand, name, abv, spirit_type, subtype=None, description=None, image_path=None):
+def get_unique_brands(no_distilleries=True):
+    """
+    Retrieve a sorted list of unique brand names from the bottles table.
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        if no_distilleries:
+            cursor.execute("""
+                SELECT DISTINCT b.brand
+                FROM bottles b
+                WHERE b.brand IS NOT NULL AND TRIM(b.brand) != ''
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM bottles b2
+                    WHERE b2.brand = b.brand
+                      AND b2.distillery_id IS NOT NULL
+                  )
+                ORDER BY b.brand
+            """)
+        else:
+            cursor.execute("""
+                SELECT DISTINCT brand
+                FROM bottles
+                WHERE brand IS NOT NULL AND TRIM(brand) != ''
+                ORDER BY brand
+            """)
+        return [row[0] for row in cursor.fetchall()]
+
+def get_bottle_names_by_brand(brand, limit=None):
+    """
+    Retrieve bottle names for a given brand.
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        query = """
+            SELECT name
+            FROM bottles
+            WHERE brand = ? AND name IS NOT NULL AND TRIM(name) != ''
+            ORDER BY name
+        """
+        params = [brand]
+        if limit:
+            query += " LIMIT ?"
+            params.append(int(limit))
+        cursor.execute(query, params)
+        return [row[0] for row in cursor.fetchall()]
+
+def add_bottle(
+    brand,
+    name,
+    abv,
+    spirit_type,
+    subtype=None,
+    description=None,
+    image_path=None,
+    distillery_id=None,
+    available=1,
+    special=0,
+):
     """Add a new bottle to the database."""
     with create_connection() as conn:
         cursor = conn.cursor()
+
+        if distillery_id is None and brand:
+            cursor.execute(
+                """
+                SELECT distillery_id
+                FROM bottles
+                WHERE brand = ? AND distillery_id IS NOT NULL
+                LIMIT 1
+                """,
+                (brand,),
+            )
+            row = cursor.fetchone()
+            if row:
+                distillery_id = row[0]
+
         cursor.execute('''
-            INSERT INTO bottles (brand, name, abv, spirit_type, subtype, description, image_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (brand, name, abv, spirit_type.capitalize(), subtype, description, image_path))
+            INSERT INTO bottles (brand, name, abv, spirit_type, subtype, description, available, image_path, distillery_id, special)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (brand, name, abv, spirit_type.capitalize(), subtype, description, available, image_path, distillery_id, special))
         conn.commit()
     return cursor.lastrowid
 
@@ -170,9 +285,154 @@ def update_bottle(bottle_id, **kwargs):
         cursor = conn.cursor()
         updates = ", ".join([f"{key} = ?" for key in kwargs.keys()])
         values = list(kwargs.values()) + [bottle_id]
+        print(f"UPDATE bottles SET {updates} WHERE id = ?", values)
         cursor.execute(f"UPDATE bottles SET {updates} WHERE id = ?", values)
         conn.commit()
+    print("comit")
     return cursor.rowcount
+
+def update_distillery(distillery_id, **kwargs):
+    """
+    Update a distillery's details in the database.
+
+    :param distillery_id: ID of the distillery to update.
+    :param kwargs: Key-value pairs of columns and their new values.
+    """
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        updates = ", ".join([f"{key} = ?" for key in kwargs.keys()])
+        values = list(kwargs.values()) + [distillery_id]
+        cursor.execute(f"UPDATE distilleries SET {updates} WHERE id = ?", values)
+        conn.commit()
+    return cursor.rowcount
+
+def merge_distilleries(primary_id, secondary_id):
+    """
+    Merge two distilleries by moving bottles from secondary to primary and deleting secondary.
+    """
+    if primary_id == secondary_id:
+        raise ValueError("Primary and secondary distillery IDs must be different.")
+
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM distilleries WHERE id = ?", (primary_id,))
+        if cursor.fetchone() is None:
+            raise ValueError("Primary distillery not found.")
+
+        cursor.execute("SELECT id FROM distilleries WHERE id = ?", (secondary_id,))
+        if cursor.fetchone() is None:
+            raise ValueError("Secondary distillery not found.")
+
+        cursor.execute(
+            "UPDATE bottles SET distillery_id = ? WHERE distillery_id = ?",
+            (primary_id, secondary_id),
+        )
+        updated_bottles = cursor.rowcount
+
+        cursor.execute("DELETE FROM distilleries WHERE id = ?", (secondary_id,))
+        deleted_distilleries = cursor.rowcount
+        conn.commit()
+
+    return {"updated_bottles": updated_bottles, "deleted_distilleries": deleted_distilleries}
+
+def upsert_distillery(
+    name,
+    lat=None,
+    lon=None,
+    country=None,
+    region=None,
+    image_path=None,
+    description=None,
+):
+    if not name or not str(name).strip():
+        return None
+
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, lat, lon, country, region, image_path, description
+            FROM distilleries
+            WHERE name = ?
+            """,
+            (name.strip(),),
+        )
+        row = cursor.fetchone()
+
+        def choose_value(new_value, existing_value):
+            if new_value is None:
+                return existing_value
+            if isinstance(new_value, str):
+                cleaned = new_value.strip()
+                return cleaned if cleaned else existing_value
+            return new_value
+
+        if row:
+            distillery_id = row[0]
+            updated = {
+                "lat": choose_value(lat, row[1]),
+                "lon": choose_value(lon, row[2]),
+                "country": choose_value(country, row[3]),
+                "region": choose_value(region, row[4]),
+                "image_path": choose_value(image_path, row[5]),
+                "description": choose_value(description, row[6]),
+            }
+            cursor.execute(
+                """
+                UPDATE distilleries
+                SET lat = ?, lon = ?, country = ?, region = ?, image_path = ?, description = ?
+                WHERE id = ?
+                """,
+                (
+                    updated["lat"],
+                    updated["lon"],
+                    updated["country"],
+                    updated["region"],
+                    updated["image_path"],
+                    updated["description"],
+                    distillery_id,
+                ),
+            )
+            conn.commit()
+            return distillery_id
+
+        cursor.execute(
+            """
+            INSERT INTO distilleries (name, lat, lon, country, region, image_path, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                name.strip(),
+                lat,
+                lon,
+                country,
+                region,
+                image_path,
+                description,
+            ),
+        )
+        conn.commit()
+        return cursor.lastrowid
+
+def update_bottles_distillery_by_brand(brand, distillery_id):
+    """
+    Set distillery_id for all bottles with the given brand.
+    """
+    if not brand or distillery_id is None:
+        return 0
+
+    with create_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE bottles
+            SET distillery_id = ?
+            WHERE brand = ?
+            """,
+            (distillery_id, brand),
+        )
+        conn.commit()
+        return cursor.rowcount
 
 #User functions
 

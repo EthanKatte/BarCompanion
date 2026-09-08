@@ -66,8 +66,8 @@
         <span class="label-text">Sort By</span>
       </label>
       <select id="sort-by" class="select select-bordered">
-        <option value="name">Name</option>
         <option value="brand">Brand</option>
+        <option value="name">Name</option>
         <option value="abv">ABV</option>
       </select>
     </div>
@@ -82,7 +82,7 @@
         <option value="desc">Descending</option>
       </select>
     </div>
-  
+
     <!-- Apply Filters Button -->
     <button class="btn btn-primary mt-4" onclick="applyFilters()">Apply Filters</button>
     <script>
@@ -92,7 +92,6 @@
           const subtype = document.getElementById("filter-subtype").value;
           const sortBy = document.getElementById("sort-by").value;
           const order = document.getElementById("order").value;
-      
           // Build query parameters
           const params = new URLSearchParams({
             brand: brand || "",
@@ -128,6 +127,7 @@
     removeDuplicateOptions("filter-brand");
     removeDuplicateOptions("filter-type");
     removeDuplicateOptions("filter-subtype");
+
   });
 
 

@@ -1,0 +1,85 @@
+﻿<div class="space-y-4">
+  <figure class="w-full rounded-2xl bg-base-200 overflow-hidden">
+    {% if distillery.image_path %}
+      <img
+        src="/database_images/{{ distillery.image_path }}"
+        alt="{{ distillery.name }}"
+        class="object-cover w-full h-56 md:h-72"
+      />
+    {% else %}
+      <div class="w-full h-56 md:h-72 flex items-center justify-center text-sm text-gray-400">
+        Image placeholder
+      </div>
+    {% endif %}
+  </figure>
+  <div>
+    <h3 class="font-bold text-lg">{{ distillery.name }}</h3>
+    <p class="text-sm text-gray-500">
+      {{ distillery.region or "Region pending" }}, {{ distillery.country or "Country pending" }}
+    </p>
+  </div>
+
+  <div class="space-y-2">
+    <h4 class="font-semibold">Description</h4>
+    {% if distillery.description %}
+      <p class="text-sm text-gray-600">{{ distillery.description }}</p>
+    {% else %}
+      <p class="text-sm text-gray-500">Description pending.</p>
+    {% endif %}
+  </div>
+
+  <div class="space-y-2">
+    <h4 class="font-semibold">Location</h4>
+    {% if distillery.lat and distillery.lon %}
+    <p class="text-sm text-gray-600">Lat {{ distillery.lat }}, Lon {{ distillery.lon }}</p>
+    <div class="rounded-lg overflow-hidden border border-base-200">
+      <iframe
+        title="Distillery map"
+        width="100%"
+        height="240"
+        frameborder="0"
+        scrolling="no"
+        marginheight="0"
+        marginwidth="0"
+        src="https://www.openstreetmap.org/export/embed.html?bbox={{ distillery.lon | float - 0.6 }},{{ distillery.lat | float - 0.35 }},{{ distillery.lon | float + 0.6 }},{{ distillery.lat | float + 0.35 }}&layer=mapnik&marker={{ distillery.lat }},{{ distillery.lon }}">
+      </iframe>
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-500">Map pending. Add a location to enable the map view.</p>
+    {% endif %}
+  </div>
+
+  <div class="space-y-2">
+    <h4 class="font-semibold">Bottles</h4>
+    {% if bottles and bottles|length > 0 %}
+      <div class="grid gap-3">
+        {% for bottle in bottles %}
+        <div class="review-component bg-base-100 border border-gray-200 rounded-2xl bg-gray-100 mt-1">
+          <div class="flex items-start gap-4 p-3">
+            <div class="w-32 h-32 flex-shrink-0 rounded-xl bg-base-200 flex items-center justify-center overflow-hidden">
+              {% if bottle.image_path %}
+              <img
+                src="/database_images/bottles/{{ bottle.image_path }}"
+                alt="{{ bottle.name }}"
+                class="object-contain w-full h-full"
+              />
+              {% else %}
+                <div class="text-xs text-gray-400">No image</div>
+              {% endif %}
+            </div>
+            <div class="flex-1">
+              <div class="font-semibold text-base">{{ bottle.brand }}</div>
+              <div class="text-sm text-gray-600">{{ bottle.name }}</div>
+              <div class="mt-2 text-xs text-gray-500">
+                {{ bottle.spirit_type }}{% if bottle.subtype %} - {{ bottle.subtype }}{% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-sm text-gray-500">No bottles linked yet.</p>
+    {% endif %}
+  </div>
+</div>
